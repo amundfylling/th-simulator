@@ -138,6 +138,8 @@ def load_scorpion_games(path: Path | None = None) -> pd.DataFrame:
             "p2": raw["Player2ID"],
             "g1": raw["GoalsPlayer1"],
             "g2": raw["GoalsPlayer2"],
+            "p1_name": raw["Player1"].astype("object"),
+            "p2_name": raw["Player2"].astype("object"),
             "match_id": raw["MatchID"].astype("int64"),
             "team_event": raw["TournamentType"].eq("Team"),
             "team_match_id": raw["TeamMatchID"],
@@ -173,6 +175,8 @@ def load_bordshockey_games(path: Path | None = None) -> pd.DataFrame:
             "p2": raw["Player2ID"],
             "g1": raw["GoalsPlayer1"],
             "g2": raw["GoalsPlayer2"],
+            "p1_name": raw["Player1"].astype("object"),
+            "p2_name": raw["Player2"].astype("object"),
             "match_id": -1,
             "team_event": False,
             "team_match_id": np.nan,
@@ -392,4 +396,16 @@ def load_games(include_bordshockey: bool = True, dedupe: bool = True) -> pd.Data
         games["dedupe_leftover"] = False
     games = games.sort_values(SORT_KEYS, kind="stable").reset_index(drop=True)
     games.attrs["crosswalk"] = crosswalk
+    return games
+
+
+def load_games_cached(refresh: bool = False) -> pd.DataFrame:
+    """``load_games()`` memoised as a parquet file in the data cache."""
+    from thsim.data.sources import cache_dir
+
+    path = cache_dir() / "games_unified.parquet"
+    if path.exists() and not refresh:
+        return pd.read_parquet(path)
+    games = load_games()
+    games.to_parquet(path, index=False)
     return games
