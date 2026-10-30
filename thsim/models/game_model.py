@@ -63,18 +63,38 @@ class GameModel:
         }
 
 
-def _fit_slope(d: np.ndarray, y: np.ndarray, weights: np.ndarray, var: np.ndarray) -> float:
-    """Logistic slope through the origin, integrated over the gap posterior."""
+def _fit_slope(d: np.ndarray, y: np.ndarray, weights: np.ndarray, var: np.ndarray, beta_reg, c_reg) -> float:
+    """Logistic slope through the origin for overtime games.
+
+    Integrated over the gap posterior conditioned on reaching overtime: close gaps draw more
+    often, so P(win) = E[P(draw|D) P(OT win|D)] / E[P(draw|D)], as in ``simulate``.
+    """
     s = max(np.std(d), 1e-9)
-    z = d / s
-    sd = np.sqrt(var) / s
     w = weights / weights.mean()
+    nodes, dw = _draw_weighted_nodes(d, var, beta_reg, c_reg)
 
     def nll(b):
-        p = sum(wt * expit(b * (z + sd * x)) for x, wt in zip(ordered_logit.GH_X, ordered_logit.GH_W))
+        p = sum(q * expit(b * x / s) for x, q in zip(nodes, dw))
         return -np.sum(w * np.log(np.clip(np.where(y, p, 1 - p), 1e-12, 1)))
 
     return float(minimize_scalar(nll, bounds=(0, 50), method="bounded").x / s)
+
+
+def _draw_weighted_nodes(d, var, beta_reg, c_reg):
+    """Gauss-Hermite nodes of the gap posterior, reweighted by P(regulation draw) and normalised."""
+    sd = np.sqrt(var)
+    nodes = [d + sd * x for x in ordered_logit.GH_X]
+    dw = [wt * ordered_logit.probs(x, beta_reg, c_reg)[:, 1] for x, wt in zip(nodes, ordered_logit.GH_W)]
+    total = np.clip(sum(dw), 1e-300, None)
+    return nodes, [q / total for q in dw]
+
+
+def ot_win_prob(model: "GameModel", d: np.ndarray, var: np.ndarray, playoff: np.ndarray) -> np.ndarray:
+    """P(A wins overtime) for games that reached overtime, over the gap posterior given the draw."""
+    beta = np.where(playoff, model.beta_po, model.beta_rr)
+    c = np.where(playoff, model.c_po, model.c_rr)
+    nodes, dw = _draw_weighted_nodes(np.asarray(d, float), np.asarray(var, float), beta, c)
+    return sum(q * model.ot_prob(x) for x, q in zip(nodes, dw))
 
 
 def _fit_c(d, y, beta, weights, var):
@@ -102,7 +122,12 @@ def scoreline_tables(x: np.ndarray, fav_goals: np.ndarray, dog_goals: np.ndarray
     fav = np.greater.outer(np.arange(MAX_GOALS + 1), np.arange(MAX_GOALS + 1))
     for name, mask in (("fav", fav), ("draw", np.eye(MAX_GOALS + 1, dtype=bool)), ("dog", fav.T)):
         t = smooth * mask
-        out[name] = t / np.clip(t.sum(axis=(1, 2), keepdims=True), 1e-12, None)
+        mass = t.sum(axis=(1, 2), keepdims=True)
+        # A bin with no support for this outcome (e.g. underdog wins at extreme gaps) borrows
+        # the outcome's pooled distribution, so every row stays a proper distribution.
+        pooled = t.sum(axis=0, keepdims=True)
+        pooled = pooled / pooled.sum() if pooled.sum() > 0 else mask / mask.sum()
+        out[name] = np.where(mass > 1e-9, t / np.where(mass > 1e-9, mass, 1.0), pooled)
     return out
 
 
@@ -128,7 +153,9 @@ def fit(d: np.ndarray, var: np.ndarray, g1: np.ndarray, g2: np.ndarray, ot: np.n
         m = rr & (source == s_)
         c_src[str(s_)] = _fit_c(d[m], y[m], beta_rr, w_all[m] / w_all[m].mean(), var[m])
     ot_games = fit_mask & ot
-    beta_ot = _fit_slope(d[ot_games], g1[ot_games] > g2[ot_games], w_all[ot_games], var[ot_games])
+    po_ot = playoff[ot_games]
+    beta_ot = _fit_slope(d[ot_games], g1[ot_games] > g2[ot_games], w_all[ot_games], var[ot_games],
+                         np.where(po_ot, beta_po, beta_rr), np.where(po_ot, c_po, c_rr))
     tables = {}
     for kind, m in (("rr", rr), ("po", po)):
         p1_fav = d[m] >= 0

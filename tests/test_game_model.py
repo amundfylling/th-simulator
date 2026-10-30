@@ -39,3 +39,31 @@ def test_simulated_shapes_match_the_data_they_came_from():
     # playoff simulations never end level
     s1, s2, _ = game_model.simulate(m, d[:1000], playoff=True, rng=np.random.default_rng(0))
     assert np.all(s1 != s2)
+
+
+def test_overtime_slope_conditions_on_reaching_overtime():
+    # Observed gap d, true gap D ~ N(d, var): the posterior the fit integrates over.
+    # Ignoring that close gaps draw more often would shrink the slope (about 0.31 here).
+    rng = np.random.default_rng(1)
+    n = 300000
+    d = rng.normal(0, 1.0, n)
+    var = np.ones(n)
+    D = d + rng.standard_normal(n)
+    p = game_model.ordered_logit.probs(D, 0.8, 0.37)
+    u = rng.random(n)
+    ot = (u > p[:, 0]) & (u < p[:, 0] + p[:, 1])
+    win = rng.random(n) < 1 / (1 + np.exp(-0.4 * D))
+    k = ot.sum()
+    beta = game_model._fit_slope(d[ot], win[ot], np.ones(k), var[ot], np.full(k, 0.8), np.full(k, 0.37))
+    assert abs(beta - 0.4) < 0.04
+
+
+def test_scoreline_rows_are_distributions_even_without_support():
+    # Underdogs never win at large gaps here: those bins borrow the pooled table.
+    x = np.concatenate([np.full(200, 0.1), np.full(200, 5.9)])
+    fav = np.concatenate([np.full(200, 1), np.full(200, 4)])
+    dog = np.concatenate([np.full(200, 2), np.full(200, 0)])
+    t = game_model.scoreline_tables(x, fav, dog)
+    for name in game_model.OUTCOMES:
+        np.testing.assert_allclose(t[name].sum(axis=(1, 2)), 1.0)
+    assert t["dog"][-1, 1, 2] == 1.0

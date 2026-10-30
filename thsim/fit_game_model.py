@@ -94,7 +94,7 @@ def run(out: Path, model_out: Path | None, half_life: float = 3.0, fit_end: str 
     po3 = integrate(lambda x: model.reg_probs(x, playoff=True), d[po], var[po])
     res["po_reg3"] = _scores3(po3, ctx.y3[po])
     otm = sel & playoff & ot
-    pot = integrate(lambda x: model.ot_prob(x), d[otm], var[otm])
+    pot = game_model.ot_win_prob(model, d[otm], var[otm], playoff[otm])
     res["ot_game"] = _scores2(pot, g1[otm] > g2[otm])
     res["ot_game_const"] = _scores2(np.full(otm.sum(), 0.5), g1[otm] > g2[otm])
 
