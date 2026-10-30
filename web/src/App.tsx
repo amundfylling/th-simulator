@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EntryList } from "./components/EntryList";
 import { FormatBuilder } from "./components/FormatBuilder";
+import { ImportBox, importLink } from "./components/ImportBox";
 import { PlayerPicker } from "./components/PlayerPicker";
 import { Results } from "./components/Results";
 import { loadData, type AppData, type RankedPlayer } from "./data";
 import type { Player, SimResult, StageConfig } from "./engine/types";
+import type { ImportResult, RatingDefaults } from "./import/tableHockeyEu";
 import { buildStages, defaultFormat, type FormatState } from "./formats";
 import type { SimRequest } from "./worker";
 
@@ -16,6 +18,8 @@ interface Saved {
   runs: number;
   uncertainty?: boolean;
   customJson?: string | null;
+  /** A table-hockey.eu tournament link: reloaded on open, so shared links stay live. */
+  importLink?: string | null;
 }
 
 /** A shared link (#s=...) wins over what this browser remembered. */
@@ -51,6 +55,7 @@ export function App() {
   const [progress, setProgress] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [result, setResult] = useState<{ res: SimResult; stages: StageConfig[] } | null>(null);
+  const [imported, setImported] = useState<{ link: string; result: ImportResult } | null>(null);
   const worker = useRef<Worker | null>(null);
 
   useEffect(() => {
@@ -59,14 +64,39 @@ export function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ selected, format, runs, uncertainty, customJson }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ selected, format, runs, uncertainty, customJson, importLink: imported?.link ?? null }));
     } catch {
       /* storage unavailable: nothing to remember */
     }
     setCopied(false);
-  }, [selected, format, runs, uncertainty, customJson]);
+  }, [selected, format, runs, uncertainty, customJson, imported]);
 
-  const byId = useMemo(() => new Map((data?.players ?? []).map((p) => [p.id, p])), [data]);
+  const defaults: RatingDefaults = useMemo(() => {
+    const rp = data?.meta.rating_params;
+    return { prior_mean: rp?.prior_mean ?? -0.8, prior_sd: rp?.prior_sd ?? 0.9, level_prior: rp?.level_prior ?? 0.5 };
+  }, [data]);
+
+  const applyImport = (link: string, r: ImportResult) => {
+    setImported({ link, result: r });
+    setSelected(r.entries.map((p) => p.id));
+    setCustomJson(JSON.stringify(r.stages, null, 2));
+    setResult(null);
+  };
+
+  // Reopen a tournament that came with the link or was loaded last time.
+  useEffect(() => {
+    if (!data || !saved.importLink) return;
+    importLink(saved.importLink, data.players, defaults).then(
+      (r) => applyImport(saved.importLink!, r),
+      () => undefined,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  const byId = useMemo(
+    () => new Map([...(data?.players ?? []), ...(imported?.result.entries ?? [])].map((p) => [p.id, p])),
+    [data, imported],
+  );
   const entries = selected.map((id) => byId.get(id)).filter((p): p is RankedPlayer => !!p);
   const n = entries.length;
 
@@ -95,7 +125,10 @@ export function App() {
     const w = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
     worker.current = w;
     const players: Player[] = entries.map((p) => ({ id: p.id, name: p.name, country: p.country, mu: p.mu, sd: p.sd }));
-    const req: SimRequest = { players, stages, model: data.model, runs, seed: Math.floor(Math.random() * 2 ** 31), ratingUncertainty: uncertainty };
+    const req: SimRequest = {
+      players, stages, model: data.model, runs, seed: Math.floor(Math.random() * 2 ** 31), ratingUncertainty: uncertainty,
+      played: imported?.result.played,
+    };
     const runStages = stages;
     setProgress(0);
     setError(null);
@@ -129,6 +162,17 @@ export function App() {
           </p>
         </div>
       </header>
+
+      <ImportBox
+        players={data.players}
+        defaults={defaults}
+        imported={imported}
+        onImport={applyImport}
+        onClear={() => {
+          setImported(null);
+          setCustomJson(null);
+        }}
+      />
 
       <div className="builder">
         <PlayerPicker
@@ -186,7 +230,7 @@ export function App() {
               <button
                 className="link"
                 onClick={() => {
-                  const url = shareUrl({ selected, format, runs, uncertainty, customJson });
+                  const url = shareUrl({ selected, format, runs, uncertainty, customJson, importLink: imported?.link ?? null });
                   history.replaceState(null, "", url);
                   navigator.clipboard?.writeText(url).then(() => setCopied(true), () => setCopied(false));
                 }}

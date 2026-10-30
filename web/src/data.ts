@@ -19,6 +19,7 @@ export interface Meta {
   latest_game: string;
   players: number;
   ranking_available: boolean;
+  rating_params?: { prior_mean: number; prior_sd: number; level_prior: number };
   tournament_backtest?: {
     window: [string, string];
     variants: Record<string, { events: number; winner_ll: number; uniform_ll: number; rps: number; top3_brier: number; fav_won: number }>;
