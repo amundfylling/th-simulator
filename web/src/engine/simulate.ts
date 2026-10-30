@@ -52,6 +52,8 @@ export class Tournament {
   private readonly strength: Float64Array;
   private readonly out: GameOut = { g1: 0, g2: 0, ot: false };
   private readonly carrySources: Set<string>;
+  /** The bracket that decides the title: its finals are the ones reported. */
+  private readonly titleStage: string | undefined;
 
   constructor(
     readonly players: Player[],
@@ -71,6 +73,8 @@ export class Tournament {
       this.playedByStage.get(g.stage)!.push(g);
     }
     validate(stages);
+    const brackets = stages.filter((s) => s.type === "knockout");
+    this.titleStage = (brackets.find((s) => s.places === 1) ?? brackets[brackets.length - 1])?.id;
     this.carrySources = new Set(stages.flatMap((s) => (s.type === "groups" && s.carryFrom ? [s.carryFrom] : [])));
   }
 
@@ -328,7 +332,7 @@ export class Tournament {
           continue;
         }
         const [hi, lo] = seedOf.get(a)! <= seedOf.get(b)! ? [a, b] : [b, a];
-        if (r === R - 1) {
+        if (r === R - 1 && stage.id === this.titleStage) {
           const key = this.players[a].id < this.players[b].id ? `${this.players[a].id}-${this.players[b].id}` : `${this.players[b].id}-${this.players[a].id}`;
           finals[key] = (finals[key] ?? 0) + 1;
         }

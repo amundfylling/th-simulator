@@ -36,6 +36,8 @@ def build(out: Path, as_of: date | None = None) -> None:
     as_of = as_of or date.today()
     as_of_day = int(np.datetime64(as_of, "D").astype(np.int64))
     games = load_games()
+    # Only games up to the export date: an --as-of export must not learn from later results.
+    games = games.loc[games["date"] <= pd.Timestamp(as_of)].reset_index(drop=True)
     players = load_players()
     ranking = load_ranking()
     params, form_sd = load_settings()
@@ -45,7 +47,7 @@ def build(out: Path, as_of: date | None = None) -> None:
     r = M.run("kalman", prep, params)
     d = (r["mu1"] - r["mu2"]).to_numpy()
     var = (r["var1"] + r["var2"]).to_numpy()
-    n1, n2 = M.prior_counts(prep.a, prep.b)
+    n1, n2 = M.prior_counts(prep.a, prep.b, prep.skip)
     age = (as_of_day - prep.day) / 365.25
     fit_mask = (age <= FIT_YEARS) & (n1 >= 1) & (n2 >= 1) & ~prep.skip
     model = game_model.fit(

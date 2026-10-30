@@ -14,6 +14,8 @@ interface Saved {
   selected: number[];
   format: FormatState;
   runs: number;
+  uncertainty?: boolean;
+  customJson?: string | null;
 }
 
 /** A shared link (#s=...) wins over what this browser remembered. */
@@ -44,8 +46,8 @@ export function App() {
   const [format, setFormat] = useState<FormatState>(saved.format ?? defaultFormat(16));
   const [formatTouched, setFormatTouched] = useState(!!saved.format);
   const [runs, setRuns] = useState(saved.runs ?? 10000);
-  const [uncertainty, setUncertainty] = useState(true);
-  const [customJson, setCustomJson] = useState<string | null>(null);
+  const [uncertainty, setUncertainty] = useState(saved.uncertainty ?? true);
+  const [customJson, setCustomJson] = useState<string | null>(saved.customJson ?? null);
   const [progress, setProgress] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [result, setResult] = useState<{ res: SimResult; stages: StageConfig[] } | null>(null);
@@ -57,12 +59,12 @@ export function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ selected, format, runs }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ selected, format, runs, uncertainty, customJson }));
     } catch {
       /* storage unavailable: nothing to remember */
     }
     setCopied(false);
-  }, [selected, format, runs]);
+  }, [selected, format, runs, uncertainty, customJson]);
 
   const byId = useMemo(() => new Map((data?.players ?? []).map((p) => [p.id, p])), [data]);
   const entries = selected.map((id) => byId.get(id)).filter((p): p is RankedPlayer => !!p);
@@ -184,7 +186,7 @@ export function App() {
               <button
                 className="link"
                 onClick={() => {
-                  const url = shareUrl({ selected, format, runs });
+                  const url = shareUrl({ selected, format, runs, uncertainty, customJson });
                   history.replaceState(null, "", url);
                   navigator.clipboard?.writeText(url).then(() => setCopied(true), () => setCopied(false));
                 }}

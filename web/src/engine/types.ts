@@ -123,7 +123,7 @@ export interface SimResult {
   /** placeCounts[i][k] = runs in which player i finished k+1. */
   placeCounts: number[][];
   stages: StageStats[];
-  /** "idA-idB" (sorted) -> count of finals between them. */
+  /** "idA-idB" (sorted) -> count of title finals between them (placement brackets excluded). */
   finals: Record<string, number>;
   elapsedMs: number;
 }
