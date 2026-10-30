@@ -1,0 +1,64 @@
+{
+ "window": [
+  "2022-01-01",
+  "2024-12-31"
+ ],
+ "variants": {
+  "elo": {
+   "events": 879,
+   "winner_ll": 1.3506,
+   "uniform_ll": 2.3565,
+   "rps": 0.0935,
+   "top3_brier": 0.1167,
+   "fav_won": 0.5506
+  },
+  "kalman": {
+   "events": 879,
+   "winner_ll": 1.2204,
+   "uniform_ll": 2.3565,
+   "rps": 0.0906,
+   "top3_brier": 0.113,
+   "fav_won": 0.5392
+  },
+  "kalman_form0.15": {
+   "events": 879,
+   "winner_ll": 1.2188,
+   "uniform_ll": 2.3565,
+   "rps": 0.0905,
+   "top3_brier": 0.1129,
+   "fav_won": 0.5438
+  },
+  "kalman_form0.3": {
+   "events": 879,
+   "winner_ll": 1.2141,
+   "uniform_ll": 2.3565,
+   "rps": 0.0903,
+   "top3_brier": 0.1127,
+   "fav_won": 0.5484
+  },
+  "kalman_form0.45": {
+   "events": 879,
+   "winner_ll": 1.2059,
+   "uniform_ll": 2.3565,
+   "rps": 0.0903,
+   "top3_brier": 0.1123,
+   "fav_won": 0.5472
+  },
+  "kalman_form0.6": {
+   "events": 879,
+   "winner_ll": 1.2098,
+   "uniform_ll": 2.3565,
+   "rps": 0.0904,
+   "top3_brier": 0.1122,
+   "fav_won": 0.5438
+  },
+  "kalman_nounc": {
+   "events": 879,
+   "winner_ll": 1.2734,
+   "uniform_ll": 2.3565,
+   "rps": 0.0915,
+   "top3_brier": 0.1143,
+   "fav_won": 0.5472
+  }
+ }
+}

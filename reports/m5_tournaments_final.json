@@ -1,0 +1,32 @@
+{
+ "window": [
+  "2025-01-01",
+  "2026-12-31"
+ ],
+ "variants": {
+  "elo": {
+   "events": 619,
+   "winner_ll": 1.4797,
+   "uniform_ll": 2.3444,
+   "rps": 0.0991,
+   "top3_brier": 0.1163,
+   "fav_won": 0.5347
+  },
+  "kalman": {
+   "events": 619,
+   "winner_ll": 1.3156,
+   "uniform_ll": 2.3444,
+   "rps": 0.0962,
+   "top3_brier": 0.1144,
+   "fav_won": 0.538
+  },
+  "kalman_form0.45": {
+   "events": 619,
+   "winner_ll": 1.2959,
+   "uniform_ll": 2.3444,
+   "rps": 0.0956,
+   "top3_brier": 0.1138,
+   "fav_won": 0.538
+  }
+ }
+}
