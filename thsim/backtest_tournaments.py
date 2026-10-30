@@ -106,7 +106,9 @@ def _ko_stage(series: pd.DataFrame) -> dict | None:
             places[int(p)] = 3
         shared = True
     entrants = sorted(set(series["a"]).union(series["b"]))
-    return {"wins": wins, "bronze": len(bronze) == 1, "places": places, "shared_third": shared, "entrants": entrants}
+    bronze_wins = int(bronze.iloc[0]["winner_wins"]) if len(bronze) == 1 else None
+    return {"wins": wins, "bronze": len(bronze) == 1, "bronze_wins": bronze_wins, "places": places, "shared_third": shared,
+            "entrants": entrants}
 
 
 def build(window: str) -> Path:
@@ -215,10 +217,14 @@ def _rr_event(tg: pd.DataFrame, kinds: list[str]) -> dict | None:
     if k < 2 or any(p not in rank_of for p in ko["entrants"]):
         return None
     rule_ok = set(ranking[:k]) == set(ko["entrants"])
-    ko_stage = {"id": "ko", "type": "knockout", "winsNeeded": ko["wins"], "bronze": ko["bronze"],
+    ko_stage = {"id": "ko", "type": "knockout", "winsNeeded": ko["wins"], **_bronze(ko),
                 "source": [{"from": "groups", "ranks": [1, k]}], "places": 1}
     return {"kind": "groups_ko", "stages": [group_stage, ko_stage], "actual": ko["places"], "known_places": 4,
             "shared_third": ko["shared_third"], "rule_ok": rule_ok, "field": field, "ko_size": k}
+
+
+def _bronze(ko: dict) -> dict:
+    return {"bronze": True, "bronzeWins": ko["bronze_wins"]} if ko["bronze"] else {"bronze": False}
 
 
 def _po_event(tg: pd.DataFrame) -> dict | None:
@@ -230,7 +236,7 @@ def _po_event(tg: pd.DataFrame) -> dict | None:
     if ko is None:
         return None
     field = ko["entrants"]
-    stage = {"id": "ko", "type": "knockout", "winsNeeded": ko["wins"], "bronze": ko["bronze"],
+    stage = {"id": "ko", "type": "knockout", "winsNeeded": ko["wins"], **_bronze(ko),
              "source": [{"from": "entry"}], "places": 1}
     return {"kind": "ko", "stages": [stage], "actual": ko["places"], "known_places": 4,
             "shared_third": ko["shared_third"], "rule_ok": True, "field": field, "seed_by": "mu"}
@@ -274,7 +280,9 @@ def score(window: str, only_rule_ok: bool = False) -> dict:
             # RPS over places 1..k plus "worse than k" (shared 3rd: 3 and 4 merged)
             cats = _categories(P, k, ev["shared_third"])
             outcome = np.array([_cat_of(actual.get(p), k, ev["shared_third"]) for p in ids])
-            top3 = P[:, :3].sum(axis=1)
+            # Shared third: both semifinal losers count as top 3, so the engine's 3rd and 4th slots both qualify.
+            top_k = 4 if ev["shared_third"] else 3
+            top3 = P[:, :top_k].sum(axis=1)
             got3 = np.array([actual.get(p, 99) <= 3 for p in ids])
             uni = np.full(n, 1.0 / n)
             rows.append({
@@ -283,7 +291,7 @@ def score(window: str, only_rule_ok: bool = False) -> dict:
                 "uniform_ll": -np.log(1.0 / n),
                 "rps": metrics.rps(cats, outcome),
                 "top3_brier": float(np.mean((top3 - got3) ** 2)),
-                "uniform_top3_brier": float(np.mean((min(3, n) / n - got3) ** 2)),
+                "uniform_top3_brier": float(np.mean((min(top_k, n) / n - got3) ** 2)),
                 "p_winner": P[winner, 0],
                 "fav_won": int(np.argmax(P[:, 0]) == winner),
             })

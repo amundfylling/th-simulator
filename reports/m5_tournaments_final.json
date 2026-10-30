@@ -6,27 +6,27 @@
  "variants": {
   "elo": {
    "events": 619,
-   "winner_ll": 1.4797,
+   "winner_ll": 1.4466,
    "uniform_ll": 2.3444,
    "rps": 0.0991,
-   "top3_brier": 0.1163,
+   "top3_brier": 0.1133,
    "fav_won": 0.5347
   },
   "kalman": {
    "events": 619,
-   "winner_ll": 1.3156,
+   "winner_ll": 1.3177,
    "uniform_ll": 2.3444,
    "rps": 0.0962,
-   "top3_brier": 0.1144,
-   "fav_won": 0.538
+   "top3_brier": 0.1118,
+   "fav_won": 0.5363
   },
   "kalman_form0.45": {
    "events": 619,
-   "winner_ll": 1.2959,
+   "winner_ll": 1.2924,
    "uniform_ll": 2.3444,
    "rps": 0.0956,
-   "top3_brier": 0.1138,
-   "fav_won": 0.538
+   "top3_brier": 0.1113,
+   "fav_won": 0.5396
   }
  }
 }
