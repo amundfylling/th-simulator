@@ -32,3 +32,16 @@ def test_series_length_inference_and_top_places():
     assert f["wins_needed"].eq(2).all() and f["consistent"].all()
     places = top_places(s)
     assert places.set_index("player")["place"].to_dict() == {1: 1, 3: 2, 4: 3, 2: 4}
+
+
+def test_bronze_places_without_semifinals():
+    rows = _series(1, 2, [(3, 1, False)], 1.0) + _series(3, 4, [(0, 2, False)], 0.9)
+    places = top_places(playoff_series(make_games(rows, stage_kind="po", stage_uid=20)))
+    assert places.set_index("player")["place"].to_dict() == {1: 1, 2: 2, 4: 3, 3: 4}
+
+
+def test_structure_ignores_dedupe_leftovers():
+    g = make_games([(1, 2, 1, 0), (1, 3, 1, 1), (2, 3, 0, 2)])
+    g["dedupe_leftover"] = [False, False, True]
+    s = group_summary(g)
+    assert len(s) == 1 and s["n_games"].iloc[0] == 2

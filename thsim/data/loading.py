@@ -19,6 +19,8 @@ Unified columns (one row per game):
     p1, p2, g1, g2    players and final goals (OT goal included)
     ot                golden-goal overtime was played
     walkover          game was not played (excluded from fitting, kept for structure)
+    dedupe_leftover   Scorpion game of a tournament matched to bordshockey.net that only
+                      Scorpion has; counts for ratings, ignored by structure inference
     team_event        game was played inside a team tournament
     level             Scorpion tournament level (string, may be missing)
 """
@@ -259,7 +261,7 @@ def deduplicate_sources(games: pd.DataFrame) -> tuple[pd.DataFrame, dict[int, in
     """
     is_b = games["source"].eq("bordshockey")
     if not is_b.any() or is_b.all():
-        return games, {}
+        return games.assign(dedupe_leftover=False), {}
     sig = _signature_frame(games)
     tids = games["tournament_uid"]
     names = games["tournament_name"]
@@ -288,6 +290,15 @@ def deduplicate_sources(games: pd.DataFrame) -> tuple[pd.DataFrame, dict[int, in
             keep.extend(b_idx[:n])
             drop.extend(p_idx[:n])
     games = games.copy()
+    # Scorpion games of a matched tournament that bordshockey lacks stay (they are real
+    # games for the ratings) but join the bordshockey tournament id and are flagged, so
+    # structure inference sees one intact tournament instead of two fragments.
+    games["dedupe_leftover"] = False
+    if p2b:
+        leftover = ~is_b & games["tournament_uid"].isin(list(p2b))
+        leftover.loc[drop] = False
+        games.loc[leftover, "dedupe_leftover"] = True
+        games.loc[leftover, "tournament_uid"] = games.loc[leftover, "tournament_uid"].map(p2b)
     if drop and "level" in games:
         dropped_levels = games.loc[drop, "level"].to_numpy()
         kept_levels = games.loc[keep, "level"]
@@ -377,6 +388,8 @@ def load_games(include_bordshockey: bool = True, dedupe: bool = True) -> pd.Data
     crosswalk: dict[int, int] = {}
     if dedupe:
         games, crosswalk = deduplicate_sources(games)
+    else:
+        games["dedupe_leftover"] = False
     games = games.sort_values(SORT_KEYS, kind="stable").reset_index(drop=True)
     games.attrs["crosswalk"] = crosswalk
     return games

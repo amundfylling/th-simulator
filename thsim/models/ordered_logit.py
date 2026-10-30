@@ -31,5 +31,6 @@ def fit(d: np.ndarray, outcome: np.ndarray, x0: tuple[float, float] = (0.005, 0.
         ll = np.where(outcome == 0, la, np.where(outcome == 2, lb, np.log(pd_)))
         return -ll.sum()
 
-    res = minimize(nll, np.array([x0[0] * scale, x0[1]]), method="Nelder-Mead", options={"xatol": 1e-7, "fatol": 1e-6, "maxiter": 4000})
+    # c >= 0 keeps P(A) + P(B) <= 1; without the bound draw-free data drives c negative.
+    res = minimize(nll, np.array([x0[0] * scale, x0[1]]), method="L-BFGS-B", bounds=[(None, None), (0.0, None)])
     return float(res.x[0] / scale), float(res.x[1])

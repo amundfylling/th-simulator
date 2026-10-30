@@ -20,3 +20,11 @@ def test_metrics_on_known_values():
     assert np.isclose(metrics.brier(p, y), ((0.25 + 0.0625 + 0.0625) + (0.04 + 0.09 + 0.25)) / 2)
     # RPS: cum diffs (-0.5, -0.25) and (0.2, 0.5) over K-1 = 2
     assert np.isclose(metrics.rps(p, y), ((0.25 + 0.0625) / 2 + (0.04 + 0.25) / 2) / 2)
+
+
+def test_ordered_logit_draw_cut_stays_nonnegative_without_draws():
+    d = np.zeros(1000)
+    y = np.tile([0, 2], 500)
+    beta, c = ordered_logit.fit(d, y)
+    assert c >= 0
+    assert np.all(ordered_logit.probs(d, beta, c).sum(axis=1) <= 1 + 1e-9)

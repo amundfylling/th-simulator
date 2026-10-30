@@ -41,3 +41,13 @@ def test_parse_ranking():
     r = parse_ranking(text)
     assert r["ithf_id"].tolist() == [123, 456]
     assert r["nation"].tolist() == ["SWE", "RUS"]
+
+
+def test_dedupe_leftovers_join_the_matched_tournament():
+    rows = [(1, 2, 3, 1), (3, 4, 2, 2), (1, 3, 0, 1), (2, 4, 5, 0)]
+    scorpion = make_games(rows, source="scorpion", tournament_uid=5, tournament_name="Cup")
+    bord = make_games(rows[:3], source="bordshockey", tournament_uid=10**10 + 7, tournament_name="Cup")
+    out, _ = deduplicate_sources(pd.concat([scorpion, bord], ignore_index=True))
+    leftover = out.loc[out["source"].eq("scorpion")]
+    assert len(leftover) == 1 and leftover["dedupe_leftover"].all()
+    assert leftover["tournament_uid"].eq(10**10 + 7).all()

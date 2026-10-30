@@ -8,6 +8,13 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 
 
+def structural(games: pd.DataFrame) -> pd.DataFrame:
+    """Games that describe a tournament's structure (drops cross-source leftovers)."""
+    if "dedupe_leftover" in games:
+        return games.loc[~games["dedupe_leftover"]]
+    return games
+
+
 def assign_groups(games: pd.DataFrame) -> pd.Series:
     """Label every round-robin game with a group id.
 
@@ -32,7 +39,8 @@ def assign_groups(games: pd.DataFrame) -> pd.Series:
 
 def group_summary(games: pd.DataFrame) -> pd.DataFrame:
     """One row per round-robin group: size, games, completeness, legs."""
-    rr = games.loc[games["stage_kind"].eq("rr")].copy()
+    rr = structural(games)
+    rr = rr.loc[rr["stage_kind"].eq("rr")].copy()
     rr["group"] = assign_groups(rr)
     lo = np.minimum(rr["p1"], rr["p2"])
     hi = np.maximum(rr["p1"], rr["p2"])
@@ -62,7 +70,8 @@ def playoff_series(games: pd.DataFrame) -> pd.DataFrame:
     win count (a series is first to N wins). Games drawn without overtime
     (drawn-games-allowed series) count as draws, not wins.
     """
-    po = games.loc[games["stage_kind"].eq("po")].copy()
+    po = structural(games)
+    po = po.loc[po["stage_kind"].eq("po")].copy()
     lo = np.minimum(po["p1"], po["p2"])
     hi = np.maximum(po["p1"], po["p2"])
     lo_goals = np.where(po["p1"].eq(lo), po["g1"], po["g2"])
@@ -134,14 +143,13 @@ def top_places(series: pd.DataFrame) -> pd.DataFrame:
     bronze = in_stage.loc[in_stage["round"].eq(0.9)].groupby("tournament_uid").head(1)
     semis = in_stage.loc[in_stage["round"].eq(0.5)]
     extra = []
-    for t, grp in semis.groupby("tournament_uid"):
-        b = bronze.loc[bronze["tournament_uid"].eq(t)]
-        if len(b):
-            extra.append((t, int(b["winner"].iloc[0]), 3, 3))
-            extra.append((t, int(b["loser"].iloc[0]), 4, 4))
-        else:
-            for loser in grp["loser"]:
-                extra.append((t, int(loser), 3, 4))
+    for b in bronze.itertuples():
+        extra.append((b.tournament_uid, int(b.winner), 3, 3))
+        extra.append((b.tournament_uid, int(b.loser), 4, 4))
+    # Without a decided bronze series both semifinal losers share places 3-4.
+    for t, grp in semis.loc[~semis["tournament_uid"].isin(bronze["tournament_uid"])].groupby("tournament_uid"):
+        for loser in grp["loser"]:
+            extra.append((t, int(loser), 3, 4))
     if extra:
         places = pd.concat([places, pd.DataFrame(extra, columns=places.columns)], ignore_index=True)
     return places.sort_values(["tournament_uid", "place"]).reset_index(drop=True)
@@ -149,6 +157,7 @@ def top_places(series: pd.DataFrame) -> pd.DataFrame:
 
 def stage_summary(games: pd.DataFrame) -> pd.DataFrame:
     """One row per stage: kind, players and the source's stage name."""
+    games = structural(games)
     long = pd.concat(
         [
             games[["tournament_uid", "stage_uid", "stage_seq", "stage_kind", "p1"]].rename(columns={"p1": "p"}),
