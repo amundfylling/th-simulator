@@ -17,7 +17,7 @@ through the tournament engine on the M5 backtest events (`m7_tournaments_{select
 | H5 | Fatigue late in an event | 0.00 | 0.00 | 0.00 | no effect |
 | H10 | Momentum inside a playoff series | 0.00 (0.04) | +0.04 (0.05) | −0.03 | no effect |
 | H7 | Rust after a long break | 0.00 | 0.00 | −0.01 | no effect (the wider uncertainty already covers it) |
-| H9 | Home-country advantage | +0.02 (0.01) | +0.01 (0.01) | +0.20 | no effect |
+| H9 | Home-country advantage | +0.02 (0.01) | +0.01 (0.01) | +0.20 | no effect (also +0.02 on events with a known host country) |
 | H8 | Favourites more (or less) dominant at big events | +0.03 (0.01) | +0.02 (0.02) | −0.02 | no effect |
 | H3 | Tighter or looser goal-difference cap in the ratings | +0.30 (0.07) | +0.43 (0.08) | +0.37 | worse; the tuned cap of 6 stays |
 | H4 | Hot or cold form within an event | +0.36 (0.10) | +0.44 (0.11) | −0.60 | worse; the ratings already update game by game |
@@ -44,10 +44,10 @@ he does a bit better than that expectation.
 | variant | 2022–24 winner log loss | 2022–24 top-3 Brier | 2025–26 winner log loss | 2025–26 top-3 Brier |
 |---|---|---|---|---|
 | today's model | 1.2076 | 0.1074 | **1.2924** | 0.1113 |
-| + results-only blend (H11) | **1.2070** | **0.1067** | 1.3205 | 0.1114 |
-| + H11 + country + age | 1.2072 | 0.1068 | 1.3075 | **0.1110** |
+| + results-only blend (H11) | 1.2070 | **0.1067** | 1.3205 | 0.1114 |
+| + H11 + country + age | **1.2062** | 0.1070 | 1.3135 | **0.1112** |
 
-Paired t-tests: p = 0.90 (2022–24) and p = 0.21 (2025–26). The game-level gain does not carry
+Paired t-tests on winner log loss: p = 0.90 and 0.21 for H11, and 0.78 and 0.29 for the combined version (2022–24 and 2025–26). Country offsets are frozen at each event's start here, so no entrant's rating sees a result from the event being forecast. The game-level gain does not carry
 through to tournament outcomes. A whole tournament is decided by a handful of close games,
 and a 0.2% better game forecast is lost in that noise.
 

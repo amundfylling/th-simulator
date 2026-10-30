@@ -36,7 +36,8 @@ def player_terms(F: H.Features, ctx: Context) -> dict[str, list[tuple[np.ndarray
     """Per-player adjustment terms (p1 side, p2 side) for each candidate component."""
     gp = json.loads(Path("reports/m2_params.json").read_text())["glicko2"]
     g = M.run("glicko2", ctx.prep, M.GlickoParams(**gp))
-    o1, o2 = F.country_offset(0.003)
+    # Offsets frozen at each event's start: every entrant's pre-event rating sees no result of the event.
+    o1, o2 = F.country_offset(0.003, freeze_by_event=True)
     young = lambda a: np.clip(20 - np.nan_to_num(a, nan=30.0), 0, 10) / 5  # noqa: E731
     old = lambda a: np.clip(np.nan_to_num(a, nan=30.0) - 45, 0, 30) / 10  # noqa: E731
     return {

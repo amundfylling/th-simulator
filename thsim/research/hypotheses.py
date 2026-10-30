@@ -78,16 +78,24 @@ def fit(d, sd, X, po, y) -> Fitted:
 
 
 @nb.njit(cache=True)
-def _country_offsets(a, b, ca, cb, d, gd, skip, n_countries, lr):
-    """Online pool offsets: learned only from cross-border games, before each game."""
+def _country_offsets(a, b, ca, cb, d, gd, skip, n_countries, lr, event, first, freeze):
+    """Online pool offsets: learned only from cross-border games, before each game.
+
+    With ``freeze`` every game of an event uses the offsets as they stood before the event's
+    first game (pre-tournament forecasts must not see the event's own results).
+    """
     off = np.zeros(n_countries)
+    snap = np.zeros((len(first), n_countries))
     o1 = np.zeros(len(a))
     o2 = np.zeros(len(a))
     for i in range(len(a)):
+        if first[event[i]] == i:
+            snap[event[i]] = off
         if ca[i] < 0 or cb[i] < 0:
             continue
-        o1[i] = off[ca[i]]
-        o2[i] = off[cb[i]]
+        cur = snap[event[i]] if freeze else off
+        o1[i] = cur[ca[i]]
+        o2[i] = cur[cb[i]]
         if skip[i] or ca[i] == cb[i]:
             continue
         r = gd[i] - (d[i] + o1[i] - o2[i])
@@ -183,9 +191,14 @@ class Features:
         self.cb = codes[n:].astype(np.int64)
         tours = load_tournaments().drop_duplicates("tournament_uid").set_index("tournament_uid")["country"]
         tc = games["tournament_uid"].map(tours)
+        # Host country is only known for Scorpion tournament ids (bordshockey events have none).
+        self.host_known = tc.notna().to_numpy()
         self.home1 = (c1.notna() & (c1 == tc)).to_numpy().astype(float)
         self.home2 = (c2.notna() & (c2 == tc)).to_numpy().astype(float)
         t = games["tournament_uid"].to_numpy().astype(np.int64)
+        event, uniq = pd.factorize(t)
+        self.event = event.astype(np.int64)
+        self.event_first = pd.Series(np.arange(n)).groupby(self.event).min().reindex(range(len(uniq))).to_numpy().astype(np.int64)
         self.ev_n1, self.ev_n2, self.ev_r1, self.ev_r2 = _event_running(prep.a, prep.b, t, self.res, prep.skip)
         self.gap1, self.gap2 = _days_since(prep.a, prep.b, prep.day, prep.skip, len(prep.players))
         age = lambda bd: np.where(bd < 10**6, (prep.day - bd) / 365.25, np.nan)  # noqa: E731
@@ -195,9 +208,10 @@ class Features:
         self.series = series_state(games)
         self.dom1, self.dom2 = _domestic_share(prep.a, prep.b, self.ca, self.cb, prep.skip, len(prep.players), 20.0)
 
-    def country_offset(self, lr: float) -> np.ndarray:
+    def country_offset(self, lr: float, freeze_by_event: bool = False) -> tuple[np.ndarray, np.ndarray]:
         p = self.ctx.prep
-        return _country_offsets(p.a, p.b, self.ca, self.cb, self.d, self.gd, p.skip, len(self.countries), lr)
+        return _country_offsets(p.a, p.b, self.ca, self.cb, self.d, self.gd, p.skip, len(self.countries), lr,
+                                self.event, self.event_first, freeze_by_event)
 
 
 # --- hypotheses --------------------------------------------------------------------------
@@ -348,7 +362,8 @@ def run(final: bool) -> dict:
             diff = ll - base_ll[wname]
             sub = {}
             for part, pm in (("all", np.ones(mask.sum(), bool)), ("po", po[mask]),
-                             ("intl", (F.ca != F.cb)[mask] & (F.ca >= 0)[mask] & (F.cb >= 0)[mask])):
+                             ("intl", (F.ca != F.cb)[mask] & (F.ca >= 0)[mask] & (F.cb >= 0)[mask]),
+                             ("host_known", F.host_known[mask])):
                 sub[part] = {"n": int(pm.sum()), "ll": float(ll[pm].mean()), "delta_x1000": float(diff[pm].mean() * 1000),
                              "se_x1000": cluster_se(diff[pm], tour[mask][pm]) * 1000}
             out[wname] = sub
@@ -364,11 +379,13 @@ def report(res: dict, final: bool) -> str:
              "2015-2021 together with the regulation model and scored on 2022-2024 (3-way regulation log loss,",
              "all games with both players known). Δ is ×1000 vs the baseline (negative = better), SE clustered",
              "by tournament. `intl` = players from different countries; `po` = playoff games.", "",
-             "| hypothesis | chosen | coefficients (goals) | Δ all | ±SE | Δ intl | Δ po |", "|---|---|---|---|---|---|---|"]
+             "`host known` = events with a known host country (Scorpion ids), the only games where H9 can act.", "",
+             "| hypothesis | chosen | coefficients (goals) | Δ all | ±SE | Δ intl | Δ po | Δ host known |", "|---|---|---|---|---|---|---|---|"]
     for name, r in sorted(res.items(), key=lambda kv: kv[1]["select"]["all"]["delta_x1000"]):
         s = r["select"]
         lines.append(f"| {name} | {r['params'] or ''} | {', '.join(f'{c:+.3f}' for c in r['coef'])} | "
-                     f"{s['all']['delta_x1000']:+.2f} | {s['all']['se_x1000']:.2f} | {s['intl']['delta_x1000']:+.2f} | {s['po']['delta_x1000']:+.2f} |")
+                     f"{s['all']['delta_x1000']:+.2f} | {s['all']['se_x1000']:.2f} | {s['intl']['delta_x1000']:+.2f} | {s['po']['delta_x1000']:+.2f} | "
+                     f"{s['host_known']['delta_x1000']:+.2f} |")
     b = res["baseline"]["select"]
     lines += ["", f"Baseline log loss: {b['all']['ll']:.4f} over {b['all']['n']:,} games ({b['intl']['n']:,} international, {b['po']['n']:,} playoff)."]
     return "\n".join(lines) + "\n"
