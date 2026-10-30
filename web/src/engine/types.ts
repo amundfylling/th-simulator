@@ -63,6 +63,8 @@ export interface KnockoutStageConfig extends BaseStage {
   winsNeeded: number[];
   bronze?: boolean;
   bronzeWins?: number;
+  /** A drawn bracket: first-round slots as player ids in bracket order (null = bye). Used when it holds exactly the stage's entrants. */
+  draw?: (number | null)[];
   /** Drawn games stand (no golden goal) and do not count as wins. */
   drawsAllowed?: boolean;
 }

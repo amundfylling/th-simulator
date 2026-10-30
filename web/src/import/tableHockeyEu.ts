@@ -45,6 +45,7 @@ interface EuMatch {
 }
 
 interface EuSeries extends EuMatch {
+  position?: number;
   games?: { gameNumber: number; homeScore?: number | null; awayScore?: number | null; wentToOvertime?: boolean; isBeyondClinch?: boolean }[];
 }
 
@@ -207,11 +208,18 @@ export function convertTournament(
         notes.push(`${s.name}: the bracket is not drawn yet, so series are simulated as first to 2.`);
       }
       const bronze = (s.placementBands ?? []).some((b) => b.startPlace === 3 && b.size === 2 && b.sourceBandStartPlace === 1);
+      // The drawn bracket: first-round series in position order, home then away.
+      const first = (rounds[0]?.matches ?? []).slice().sort((x, y) => (x.position ?? 0) - (y.position ?? 0));
+      const draw = first.flatMap((m) => [m.homePlayerId, m.awayPlayerId].map((id) => mapped(id) ?? null));
       out.push({
         id: sid(s.id), name: s.name, type: "knockout", winsNeeded, source, places: firstPlace,
+        ...(draw.some((x) => x !== null) ? { draw } : {}),
         ...(bronze ? { bronze: true, bronzeWins: winsNeeded[winsNeeded.length - 1] } : {}),
       });
-      for (const r of s.playoffRounds ?? [])
+      // Championship games go to the bracket, 3rd-4th games to the engine's bronze series; other bands are not simulated.
+      for (const r of s.playoffRounds ?? []) {
+        const stageKey = r.bandStartPlace === 1 ? sid(s.id) : bronze && r.bandStartPlace === 3 && r.bandSize === 2 ? `${s.id}:bronze` : null;
+        if (!stageKey) continue;
         for (const m of r.matches ?? []) {
           const a = mapped(m.homePlayerId);
           const b = mapped(m.awayPlayerId);
@@ -221,14 +229,15 @@ export function convertTournament(
             // A walked-over series: the winner takes the games it needed.
             const need = r.gamesToWin;
             for (let k = 0; k < need; k++)
-              played.push({ stage: sid(s.id), p1: a, p2: b, g1: wo[0], g2: wo[1] });
+              played.push({ stage: stageKey, p1: a, p2: b, g1: wo[0], g2: wo[1] });
             continue;
           }
           for (const g of (m.games ?? []).slice().sort((x, y) => x.gameNumber - y.gameNumber)) {
             if (g.isBeyondClinch || g.homeScore == null || g.awayScore == null) continue;
-            played.push({ stage: sid(s.id), p1: a, p2: b, g1: g.homeScore, g2: g.awayScore, ot: !!g.wentToOvertime });
+            played.push({ stage: stageKey, p1: a, p2: b, g1: g.homeScore, g2: g.awayScore, ot: !!g.wentToOvertime });
           }
         }
+      }
     } else {
       notes.push(`${s.name}: stage type "${s.type}" is not supported and was left out.`);
     }

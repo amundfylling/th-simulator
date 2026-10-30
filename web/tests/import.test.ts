@@ -26,8 +26,8 @@ const league: EuStage = {
     matches: order.flatMap((a, i) => order.slice(i + 1).map((b) => ({ homePlayerId: a, awayPlayerId: b, homeScore: 3, awayScore: 1, walkover: "None" }))),
   }],
 };
-const series = (home: number, away: number, games: [number, number][]) => ({
-  homePlayerId: home, awayPlayerId: away, walkover: "None",
+const series = (home: number, away: number, games: [number, number][], position = 0) => ({
+  homePlayerId: home, awayPlayerId: away, walkover: "None", position,
   games: games.map(([h, a], k) => ({ gameNumber: k + 1, homeScore: h, awayScore: a, wentToOvertime: false, isBeyondClinch: false })),
 });
 const aPlayoff: EuStage = {
@@ -35,8 +35,10 @@ const aPlayoff: EuStage = {
   field: { source: "Stage", rule: [{ stageId: 190, groups: [], placeFrom: 1, placeTo: 4 }] },
   placementBands: [{ startPlace: 3, size: 2, sourceBandStartPlace: 1 }],
   playoffRounds: [
-    { roundNumber: 1, bandStartPlace: 1, bandSize: 4, gamesToWin: 2, matches: [series(29, 224, [[5, 2], [4, 2]]), series(72, 333, [[1, 2], [2, 3]])] },
-    { roundNumber: 2, bandStartPlace: 1, bandSize: 4, gamesToWin: 2, matches: [series(29, 333, [[7, 1], [5, 1]])] },
+    // The real draw (1 v 3rd, 2 v 4th), not the standard 1 v 4 bracket; positions listed out of order.
+    { roundNumber: 1, bandStartPlace: 1, bandSize: 4, gamesToWin: 2, matches: [series(72, 224, [[1, 2], [2, 3]], 1), series(29, 333, [[5, 2], [4, 2]], 0)] },
+    { roundNumber: 2, bandStartPlace: 1, bandSize: 4, gamesToWin: 2, matches: [series(29, 224, [[7, 1], [5, 1]])] },
+    { roundNumber: 1, bandStartPlace: 3, bandSize: 2, gamesToWin: 2, matches: [series(72, 333, [[3, 1], [3, 2]])] },
   ],
 };
 const bPlayoff: EuStage = {
@@ -81,8 +83,10 @@ describe("table-hockey.eu import", () => {
     const a = res.stages[1];
     expect(a.type === "knockout" && a.winsNeeded).toEqual([2, 2]);
     expect(a.type === "knockout" && a.bronze).toBe(true);
+    expect(a.type === "knockout" && a.draw).toEqual([1647, -333, -72, -224]);
     expect(res.played.filter((g) => g.stage === "190")).toHaveLength(45);
     expect(res.played.filter((g) => g.stage === "191")).toHaveLength(6);
+    expect(res.played.filter((g) => g.stage === "191:bronze")).toHaveLength(2);
     expect(res.notes.some((n) => n.includes("not drawn yet"))).toBe(true);
   });
 
@@ -90,10 +94,11 @@ describe("table-hockey.eu import", () => {
     const players = res.entries.map((p) => ({ id: p.id, name: p.name, mu: p.mu, sd: p.sd }));
     const sim = new Tournament(players, res.stages, toyModel(), res.played).simulate({ runs: 300, seed: 1 });
     const idx = (id: number) => players.findIndex((p) => p.id === id);
-    expect(sim.placeCounts[idx(1647)][0]).toBe(300); // won the final
-    expect(sim.placeCounts[idx(-333)][1]).toBe(300); // lost the final
-    // bronze between the semifinal losers is still open
-    expect(sim.placeCounts[idx(-72)][2] + sim.placeCounts[idx(-224)][2]).toBe(300);
+    // The whole A playoff is played: its drawn bracket and bronze result stand in every run.
+    expect(sim.placeCounts[idx(1647)][0]).toBe(300);
+    expect(sim.placeCounts[idx(-224)][1]).toBe(300);
+    expect(sim.placeCounts[idx(-72)][2]).toBe(300);
+    expect(sim.placeCounts[idx(-333)][3]).toBe(300);
     // places 9-10 come from the finished league
     expect(sim.placeCounts[idx(-7000)][8]).toBe(300);
     expect(sim.placeCounts[idx(-6351)][9]).toBe(300);
