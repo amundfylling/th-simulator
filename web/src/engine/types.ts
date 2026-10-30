@@ -76,6 +76,7 @@ export interface SwissStageConfig extends BaseStage {
 
 export type StageConfig = GroupStageConfig | KnockoutStageConfig | SwissStageConfig;
 
+/** A game already played. In a Swiss stage, games fill the rounds in the order listed. */
 export interface PlayedGame {
   stage: string;
   p1: number;

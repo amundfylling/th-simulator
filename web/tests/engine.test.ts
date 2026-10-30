@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Rng } from "../src/engine/rng";
-import { bracketOrder, rankTable, roundWins, simulateTournament, Tournament } from "../src/engine/simulate";
+import { assignGroups, bracketOrder, rankTable, roundWins, simulateTournament, Tournament } from "../src/engine/simulate";
 import type { StageConfig } from "../src/engine/types";
 import { players, toyModel } from "./fixtures";
 
@@ -9,6 +9,10 @@ const model = toyModel();
 describe("helpers", () => {
   it("builds a standard bracket", () => {
     expect(bracketOrder(8)).toEqual([1, 8, 4, 5, 2, 7, 3, 6]);
+  });
+  it("fills every group with block seeding", () => {
+    const sizes = assignGroups([...Array(10).keys()], 6, "block").map((g) => g.length);
+    expect(sizes).toEqual([2, 2, 1, 2, 2, 1]);
   });
   it("aligns wins per round to the final", () => {
     expect(roundWins([3, 4, 4], 4)).toEqual([3, 3, 4, 4]);
@@ -123,6 +127,30 @@ describe("tournament engine", () => {
     expect(res.placeCounts[1][1]).toBe(20);
     expect(res.placeCounts[0][2]).toBe(20);
     expect(res.placeCounts[2][3]).toBe(20);
+  });
+
+  it("carries results into a later group whatever the pair order", () => {
+    const ps = players(2, 0.01);
+    const cfg: StageConfig[] = [
+      { id: "g1", type: "groups", groups: 1, groupsExplicit: [[100, 101]], source: [{ from: "entry" }] },
+      { id: "g2", type: "groups", groups: 1, groupsExplicit: [[101, 100]], carryFrom: "g1", source: [{ from: "g1", ranks: [1, 2] }], places: 1 },
+    ];
+    const played = [{ stage: "g1", p1: 100, p2: 101, g1: 3, g2: 0 }];
+    const res = new Tournament(ps, cfg, model, played).simulate({ runs: 50, seed: 2 });
+    expect(res.placeCounts[0][0]).toBe(50);
+  });
+
+  it("keeps played Swiss pairings (live mode)", () => {
+    const ps = players(4, 0.01);
+    const cfg: StageConfig[] = [{ id: "s", type: "swiss", rounds: 1, source: [{ from: "entry" }], places: 1 }];
+    const played = [
+      { stage: "s", p1: 100, p2: 102, g1: 0, g2: 2 },
+      { stage: "s", p1: 101, p2: 103, g1: 0, g2: 2 },
+    ];
+    const res = new Tournament(ps, cfg, model, played).simulate({ runs: 50, seed: 4 });
+    // 102 and 103 won their games: they take the top two places every time
+    expect(res.placeCounts[2][0] + res.placeCounts[2][1]).toBe(50);
+    expect(res.placeCounts[3][0] + res.placeCounts[3][1]).toBe(50);
   });
 
   it("runs a Swiss stage and placement brackets", () => {

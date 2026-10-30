@@ -47,6 +47,7 @@ export class Tournament {
   readonly n: number;
   private readonly index = new Map<number, number>();
   private readonly played = new Map<string, PlayedGame[]>();
+  private readonly playedByStage = new Map<string, PlayedGame[]>();
   private readonly sampler: GameSampler;
   private readonly strength: Float64Array;
   private readonly out: GameOut = { g1: 0, g2: 0, ot: false };
@@ -66,6 +67,8 @@ export class Tournament {
       const key = pairKey(g.stage, g.p1, g.p2);
       if (!this.played.has(key)) this.played.set(key, []);
       this.played.get(key)!.push(g);
+      if (!this.playedByStage.has(g.stage)) this.playedByStage.set(g.stage, []);
+      this.playedByStage.get(g.stage)!.push(g);
     }
     validate(stages);
     this.carrySources = new Set(stages.flatMap((s) => (s.type === "groups" && s.carryFrom ? [s.carryFrom] : [])));
@@ -194,7 +197,9 @@ export class Tournament {
           const a = members[x];
           const b = members[y];
           let games: [number, number][] | undefined;
-          if (stage.carryFrom) games = log.get(logKey(stage.carryFrom, a, b));
+          // The log holds goals from the lower index's view: turn them to a's view.
+          const carried = stage.carryFrom ? log.get(logKey(stage.carryFrom, a, b)) : undefined;
+          if (carried) games = a < b ? carried : carried.map(([u, v]) => [v, u] as [number, number]);
           if (!games) {
             games = [];
             for (let l = 0; l < legs; l++) {
@@ -242,8 +247,27 @@ export class Tournament {
     const met = new Set<string>();
     const results = new Map<string, [number, number][]>(); // key min|max, goals from min's view
     const byeHad = new Set<number>();
+    const standingOf = new Map(table.map((s) => [s.p, s]));
+    // Live mode: played games fill the rounds in the order listed, floor(n / 2) per round.
+    const fixed = (this.playedByStage.get(stage.id) ?? [])
+      .map((g) => [this.index.get(g.p1), this.index.get(g.p2)] as const)
+      .filter(([a, b]) => a !== undefined && b !== undefined && standingOf.has(a) && standingOf.has(b)) as [number, number][];
+    const perRound = Math.floor(table.length / 2);
+    const play = (a: Standing, b: Standing) => {
+      const key = logKey("", a.p, b.p);
+      met.add(key);
+      const prev = results.get(key) ?? [];
+      const o = this.game(stage.id, a.p, b.p, false, false, rng, prev.length);
+      addGame(a, b, o.g1, o.g2, pts);
+      prev.push(a.p < b.p ? [o.g1, o.g2] : [o.g2, o.g1]);
+      results.set(key, prev);
+    };
     for (let round = 0; round < stage.rounds; round++) {
-      const order = table.slice().sort((u, v) => v.points - u.points || (v.gf - v.ga) - (u.gf - u.ga) || u.seed - v.seed);
+      const fixedNow = perRound > 0 ? fixed.slice(round * perRound, (round + 1) * perRound) : [];
+      const busy = new Set(fixedNow.flat());
+      const order = table
+        .filter((s) => !busy.has(s.p))
+        .sort((u, v) => v.points - u.points || (v.gf - v.ga) - (u.gf - u.ga) || u.seed - v.seed);
       if (order.length % 2 === 1) {
         // lowest-ranked player without a bye sits out and scores a win
         let k = order.length - 1;
@@ -252,19 +276,14 @@ export class Tournament {
         byeHad.add(bye.p);
         bye.points += pts[0];
       }
+      for (const [a, b] of fixedNow) play(standingOf.get(a)!, standingOf.get(b)!);
       const free = order.slice();
       while (free.length > 1) {
         const a = free.shift()!;
         let j = free.findIndex((b) => !met.has(logKey("", a.p, b.p)));
         if (j < 0) j = 0;
         const b = free.splice(j, 1)[0];
-        met.add(logKey("", a.p, b.p));
-        const o = this.game(stage.id, a.p, b.p, false, false, rng, 0);
-        addGame(a, b, o.g1, o.g2, pts);
-        const key = logKey("", a.p, b.p);
-        const prev = results.get(key) ?? [];
-        prev.push(a.p < b.p ? [o.g1, o.g2] : [o.g2, o.g1]);
-        results.set(key, prev);
+        play(a, b);
       }
     }
     rankTable(table, stage.tiebreak ?? ["points", "gd", "gf", "lot"], (a, b) => {
@@ -429,10 +448,10 @@ export function rankTable(
 /** Spread seeded entrants over G groups (snake: 1..G, G..1, ...; block: consecutive). */
 export function assignGroups<T>(order: T[], G: number, seeding: "snake" | "block" = "snake"): T[][] {
   const groups: T[][] = Array.from({ length: G }, () => []);
-  const per = Math.ceil(order.length / G);
   order.forEach((p, i) => {
     let g: number;
-    if (seeding === "block") g = Math.floor(i / per);
+    // Consecutive blocks whose sizes differ by at most one, so every group gets players.
+    if (seeding === "block") g = Math.floor((i * G) / order.length);
     else {
       const round = Math.floor(i / G);
       const pos = i % G;
