@@ -55,7 +55,7 @@ class Context:
     def __init__(self, games: pd.DataFrame, players: pd.DataFrame):
         self.games = games
         self.prep = M.prepare(games, players)
-        self.n1, self.n2 = M.prior_counts(self.prep.a, self.prep.b)
+        self.n1, self.n2 = M.prior_counts(self.prep.a, self.prep.b, self.prep.skip)
         rg1, rg2 = regulation_scores(games)
         self.y3 = outcome_codes(rg1, rg2)
         self.p1_won = (games["g1"] > games["g2"]).to_numpy()

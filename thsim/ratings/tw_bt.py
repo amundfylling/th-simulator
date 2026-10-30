@@ -41,7 +41,6 @@ def run_tw_bt(prep: Prepared, params: TwBtParams = TwBtParams()) -> pd.DataFrame
     start = np.datetime64(params.start, "M")
     y = np.clip(prep.gd, -params.gd_cap, params.gd_cap)
     ok = ~prep.skip
-    x0 = None
     for m in np.unique(months[months >= start]):
         cutoff = m.astype("datetime64[D]").astype(np.int64)
         lo = cutoff - int(params.window_years * 365.25)
@@ -55,9 +54,8 @@ def run_tw_bt(prep: Prepared, params: TwBtParams = TwBtParams()) -> pd.DataFrame
         cols = np.column_stack([prep.a[idx], prep.b[idx]]).ravel()
         vals = np.column_stack([w, -w]).ravel()
         X = csr_matrix((vals, (rows, cols)), shape=(len(idx), n_players))
-        # Ridge toward the newcomer mean: solve for s - prior_mean.
-        sol = lsqr(X, w * y[idx], damp=np.sqrt(params.ridge), x0=x0, atol=1e-6, btol=1e-6, iter_lim=300)[0]
-        x0 = sol
+        # Ridge toward the newcomer mean: solve for s - prior_mean. No x0: lsqr would shrink toward it instead.
+        sol = lsqr(X, w * y[idx], damp=np.sqrt(params.ridge), atol=1e-6, btol=1e-6, iter_lim=300)[0]
         s = sol + params.prior_mean
         precision = np.bincount(np.concatenate([prep.a[idx], prep.b[idx]]), weights=np.concatenate([w**2, w**2]), minlength=n_players) + params.ridge
         var = params.obs_sd**2 / precision

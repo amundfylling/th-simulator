@@ -258,15 +258,17 @@ def run(model: str, prep: Prepared, params) -> pd.DataFrame:
 
 
 @nb.njit(cache=True)
-def prior_counts(a, b):
+def prior_counts(a, b, skip):
+    """Played games (walkovers excluded) each player had before every game."""
     n = max(a.max(), b.max()) + 1
     cnt = np.zeros(n, np.int64)
     n1 = np.empty(len(a), np.int64)
     n2 = np.empty(len(a), np.int64)
     for i in range(len(a)):
         n1[i], n2[i] = cnt[a[i]], cnt[b[i]]
-        cnt[a[i]] += 1
-        cnt[b[i]] += 1
+        if not skip[i]:
+            cnt[a[i]] += 1
+            cnt[b[i]] += 1
     return n1, n2
 
 

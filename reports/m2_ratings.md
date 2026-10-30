@@ -2,20 +2,20 @@
 
 Ratings are computed walk-forward over all games (both sources, team events included, walkovers skipped).
 Hyperparameters tuned on 2015-2021 round-robin 3-way log loss; models compared on 2022-2024
-(205,272 round-robin games with both players known, 178,444 with both seasoned 30+;
+(205,272 round-robin games with both players known, 178,422 with both seasoned 30+;
 65,855 decided playoff games). `+var` = rating uncertainty integrated into the prediction.
 Lower is better everywhere.
 
 | model | tune_ll | select_seasoned_ll | select_seasoned_rps | select_all_ll | select_all_rps | select_all_po_ll |
 |---|---|---|---|---|---|---|
-| kalman+var | 0.7543 | 0.7768 | 0.1675 | 0.7606 | 0.1634 | 0.5766 |
-| kalman | 0.7543 | 0.7768 | 0.1675 | 0.7606 | 0.1634 | 0.5766 |
-| mov_elo | 0.7630 | 0.7788 | 0.1680 | 0.7682 | 0.1655 | 0.5766 |
-| glicko2+var | 0.7644 | 0.7782 | 0.1677 | 0.7692 | 0.1657 | 0.5776 |
+| kalman+var | 0.7543 | 0.7769 | 0.1676 | 0.7606 | 0.1634 | 0.5766 |
+| kalman | 0.7543 | 0.7769 | 0.1676 | 0.7606 | 0.1634 | 0.5766 |
+| mov_elo | 0.7630 | 0.7789 | 0.1680 | 0.7682 | 0.1655 | 0.5766 |
+| glicko2+var | 0.7644 | 0.7783 | 0.1678 | 0.7691 | 0.1657 | 0.5776 |
 | glicko2 | 0.7644 | 0.7783 | 0.1678 | 0.7706 | 0.1660 | 0.5777 |
-| elo | 0.7687 | 0.7833 | 0.1694 | 0.7735 | 0.1672 | 0.5820 |
-| tw_bt+var | 0.7962 | 0.7833 | 0.1691 | 0.7860 | 0.1712 | 0.5887 |
-| tw_bt | 0.7962 | 0.7851 | 0.1695 | 0.7888 | 0.1718 | 0.5903 |
+| elo | 0.7687 | 0.7834 | 0.1694 | 0.7735 | 0.1672 | 0.5820 |
+| tw_bt+var | – | 0.7879 | 0.1706 | 0.7972 | 0.1750 | 0.5920 |
+| tw_bt | – | 0.7902 | 0.1711 | 0.8007 | 0.1758 | 0.5944 |
 
 Columns: `*_ll` 3-way log loss on round-robin games, `*_rps` ranked probability score, `*_po_ll` binary log loss
 of the playoff game winner.
@@ -66,4 +66,4 @@ of the playoff game winner.
 }
 ```
 
-Runtime 13.3 min.
+Runtime 2.6 min.

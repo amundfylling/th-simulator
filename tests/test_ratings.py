@@ -51,3 +51,12 @@ def test_elo_and_glicko_favour_the_winner():
     for model, params in [("elo", M.EloParams()), ("mov_elo", M.EloParams(mov=1.0)), ("glicko2", M.GlickoParams())]:
         r = M.run(model, prep, params)
         assert r["mu1"].iloc[-1] > r["mu2"].iloc[-1]
+
+
+def test_prior_counts_skip_walkovers():
+    games = make_games([dict(p1=1, p2=2, g1=5, g2=0, walkover=True), (1, 2, 3, 1), (1, 3, 2, 2)])
+    prep = M.prepare(games)
+    n1, n2 = M.prior_counts(prep.a, prep.b, prep.skip)
+    # The walkover is not history: both players are new at their first played game.
+    assert (n1[1], n2[1]) == (0, 0)
+    assert n1[2] == 1
