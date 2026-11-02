@@ -5,4 +5,4 @@ __pycache__/
 data_cache/
 node_modules/
 dist/
-web/public/data/
+web/public/data
