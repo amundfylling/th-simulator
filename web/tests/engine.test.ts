@@ -161,6 +161,8 @@ describe("tournament engine", () => {
       { id: "b", type: "knockout", winsNeeded: [1], source: [{ from: "swiss", ranks: [9, 16] }], places: 9 },
     ];
     const res = simulateTournament(ps, { stages: cfg }, model, { runs: 1000, seed: 5 });
+    // only the title bracket's finals are reported, not the B playoff's
+    expect(Object.values(res.finals).reduce((a, b) => a + b, 0)).toBe(1000);
     for (let i = 0; i < ps.length; i++) {
       const inB = res.stages[2].entered[i];
       const placesB = res.placeCounts[i].slice(8, 16).reduce((a, b) => a + b, 0);
