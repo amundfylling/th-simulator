@@ -66,6 +66,13 @@ or from slices of earlier stages' rankings, and `places` fixes final places:
 
 Games already played (live mode) go in `played: [{stage, p1, p2, g1, g2, ot}]`.
 
+On the website, a table-hockey.eu tournament link (e.g. `https://table-hockey.eu/tournaments/33`)
+loads the entry list, the real stages (groups, playoff series lengths, bronze, which places feed
+which bracket) and every game played so far from its public API, then simulates what is still
+open. Players are matched by ITHF id, then by name; anyone without rating history starts as a
+newcomer for the event's level. If a browser blocks the API, build with `VITE_TH_PROXY` set to a
+relay URL prefix.
+
 ## Deployment
 
 `.github/workflows/site.yml` rebuilds the ratings and the site every night and publishes

@@ -315,7 +315,7 @@ export class Tournament {
     // reached[] is aligned to the end (last = winner) so round names match any bracket size.
     const off = st.reached![0].length - 1 - R;
     const wins = roundWins(stage.winsNeeded, R);
-    const slots = bracketOrder(size).map((seed) => (seed <= m ? entrants[seed - 1] : -1));
+    const slots = this.drawnSlots(stage, entrants, size) ?? bracketOrder(size).map((seed) => (seed <= m ? entrants[seed - 1] : -1));
     const seedOf = new Map(entrants.map((p, i) => [p, i]));
     const eliminated: number[][] = Array.from({ length: R }, () => []);
     let alive = slots;
@@ -358,6 +358,16 @@ export class Tournament {
       for (const p of losers) if (!ranking.includes(p)) ranking.push(p);
     }
     return ranking;
+  }
+
+  /** The stage's drawn bracket as player indices, if it seats exactly these entrants. */
+  private drawnSlots(stage: KnockoutStageConfig, entrants: number[], size: number): number[] | null {
+    if (!stage.draw || stage.draw.length !== size) return null;
+    const slots = stage.draw.map((id) => (id == null ? -1 : this.index.get(id) ?? -2));
+    const seated = slots.filter((p) => p >= 0);
+    const want = new Set(entrants);
+    if (seated.length !== want.size || new Set(seated).size !== seated.length || !seated.every((p) => want.has(p))) return null;
+    return slots;
   }
 
   /** First to `need` wins; returns the winner. Higher seed is player 1. */
