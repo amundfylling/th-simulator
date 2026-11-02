@@ -1,0 +1,72 @@
+{
+ "coef": {
+  "results": {
+   "coef": [
+    0.16275372641208105
+   ],
+   "beta_rr": 0.7531234054692928
+  },
+  "results+country+age": {
+   "coef": [
+    0.16071900884102497,
+    -0.15157302386814697,
+    0.48352522818032545,
+    -0.028746356655809713,
+    -0.049859723920096695
+   ],
+   "beta_rr": 0.7521607795841694
+  }
+ },
+ "variants": {
+  "kalman_form0.45": {
+   "events": 879,
+   "winner_ll": 1.2076,
+   "uniform_ll": 2.3565,
+   "rps": 0.0903,
+   "top3_brier": 0.1074,
+   "uniform_top3_brier": 0.2027,
+   "fav_won": 0.5529,
+   "mean_p_winner": 0.4291
+  },
+  "results+country+age_form0.45": {
+   "events": 879,
+   "winner_ll": 1.2062,
+   "uniform_ll": 2.3565,
+   "rps": 0.0901,
+   "top3_brier": 0.107,
+   "uniform_top3_brier": 0.2027,
+   "fav_won": 0.5404,
+   "mean_p_winner": 0.4369
+  },
+  "results_form0.45": {
+   "events": 879,
+   "winner_ll": 1.207,
+   "uniform_ll": 2.3565,
+   "rps": 0.09,
+   "top3_brier": 0.1067,
+   "uniform_top3_brier": 0.2027,
+   "fav_won": 0.5461,
+   "mean_p_winner": 0.4366
+  }
+ },
+ "tests": {
+  "kalman_form0.45 vs results+country+age_form0.45": {
+   "mean_diff": 0.001479469131491173,
+   "t_p": 0.7756202462367459,
+   "wilcoxon_p": 5.7907741390641505e-05,
+   "n": 879
+  },
+  "kalman_form0.45 vs results_form0.45": {
+   "mean_diff": 0.0005965587517068174,
+   "t_p": 0.9015940285126127,
+   "wilcoxon_p": 0.00017699908782586353,
+   "n": 879
+  },
+  "results+country+age_form0.45 vs results_form0.45": {
+   "mean_diff": -0.0008829103797843562,
+   "t_p": 0.7467551322912275,
+   "wilcoxon_p": 0.30847634766908205,
+   "n": 879
+  }
+ }
+}
