@@ -82,6 +82,19 @@ describe("tournament engine", () => {
     expect(a.finals["100-101"]).toBeGreaterThan(0);
   });
 
+  it("applies head-to-head edges to the named pair only", () => {
+    const ps = players(2, 0);
+    const cfg: StageConfig[] = [{ id: "ko", type: "knockout", winsNeeded: [1], source: [{ from: "entry" }], places: 1 }];
+    const even = simulateTournament(ps, { stages: cfg }, model, { runs: 4000, seed: 5 });
+    const edged = simulateTournament(ps, { stages: cfg, h2h: { "100-101": 1.0 } }, model, { runs: 4000, seed: 5 });
+    const flipped = simulateTournament(ps, { stages: cfg, h2h: { "100-101": -1.0 } }, model, { runs: 4000, seed: 5 });
+    expect(Math.abs(even.placeCounts[0][0] - 2000)).toBeLessThan(200);
+    expect(edged.placeCounts[0][0]).toBeGreaterThan(2600);
+    expect(flipped.placeCounts[1][0]).toBeGreaterThan(2600);
+    const other = simulateTournament(ps, { stages: cfg, h2h: { "100-999": 1.0 } }, model, { runs: 4000, seed: 5 });
+    expect(other.placeCounts).toEqual(even.placeCounts);
+  });
+
   it("gives top seeds byes when the bracket is not full", () => {
     const ps = players(6);
     const cfg: StageConfig[] = [{ id: "ko", type: "knockout", winsNeeded: [1], source: [{ from: "entry" }], places: 1 }];

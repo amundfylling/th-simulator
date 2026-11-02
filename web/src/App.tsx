@@ -4,7 +4,7 @@ import { FormatBuilder } from "./components/FormatBuilder";
 import { ImportBox, importLink } from "./components/ImportBox";
 import { PlayerPicker } from "./components/PlayerPicker";
 import { Results } from "./components/Results";
-import { loadData, type AppData, type RankedPlayer } from "./data";
+import { h2hFor, loadData, type AppData, type RankedPlayer } from "./data";
 import type { Player, SimResult, StageConfig } from "./engine/types";
 import type { ImportResult, RatingDefaults } from "./import/tableHockeyEu";
 import { buildStages, defaultFormat, type FormatState } from "./formats";
@@ -128,6 +128,7 @@ export function App() {
     const req: SimRequest = {
       players, stages, model: data.model, runs, seed: Math.floor(Math.random() * 2 ** 31), ratingUncertainty: uncertainty,
       played: imported?.result.played,
+      h2h: h2hFor(data.h2h, players.map((p) => p.id)),
     };
     const runStages = stages;
     setProgress(0);
@@ -254,11 +255,19 @@ function About({ data }: { data: AppData }) {
     <footer className="about card">
       <h3>How it works</h3>
       <p>
-        Every player has a rating that tracks their skill over time, learned from goal difference in{" "}
-        {data.meta.games.toLocaleString()} games from th.sportscorpion.com and bordshockey.net. Ratings drift faster for
+        Every player has a rating that tracks their skill over time, learned from{" "}
+        {data.meta.games.toLocaleString()} games from th.sportscorpion.com and bordshockey.net. It blends a goal-difference
+        rating with a Glicko-2 rating on a softened margin score, the method used by h2h.puck.no. Ratings drift faster for
         juniors and after long breaks, and the "±" shows how uncertain each one is. 100 rating points correspond to about one
         goal of expected margin per game.
       </p>
+      {Object.keys(data.h2h).length > 0 && (
+        <p>
+          Some players match up better or worse against a particular opponent than their ratings suggest. When two players
+          have met before, the games between them shift their head-to-head odds a little, shrunk toward zero until they have
+          met often (also from h2h.puck.no).
+        </p>
+      )}
       <p>
         Each simulated tournament draws every player's strength once from that uncertainty. Games are then played with a model
         fitted on real results: how often games are drawn at each strength gap, real scorelines (so goal difference tiebreaks
@@ -278,11 +287,15 @@ function Backtest({ data }: { data: AppData }) {
   const bt = data.meta.tournament_backtest;
   if (!bt) return null;
   const v = bt.variants;
-  const model = v["kalman_form0.45"] ?? v["kalman"];
+  const previous = v["kalman_form0.45"] ?? v["kalman"];
+  const model = v["composite+h2h_form0.45"] ?? previous;
   if (!model) return null;
   const gm = (ll: number) => `${(Math.exp(-ll) * 100).toFixed(1)}%`;
-  const rows: [string, { winner_ll: number; fav_won: number; rps: number } | undefined, string][] = [
+  type Row = [string, { winner_ll: number; fav_won: number; rps: number } | undefined, string];
+  const before: Row[] = model !== previous ? [["Goal-difference rating only", previous, "the model before the head-to-head update"]] : [];
+  const rows: Row[] = [
     ["This simulator", model, "ratings with uncertainty, form, real formats"],
+    ...before,
     ["Plain Elo, same engine", v["elo"], "no uncertainty"],
     ["Everyone equal", { winner_ll: model.uniform_ll, fav_won: NaN, rps: NaN }, "baseline"],
   ];

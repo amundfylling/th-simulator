@@ -18,6 +18,8 @@ interface Event {
   tournament_uid: number;
   stages: StageConfig[];
   players: EventPlayer[];
+  /** Optional head-to-head edges ("idA-idB" -> shift for idA), frozen at the event's start. */
+  h2h?: Record<string, number>;
 }
 
 const [eventsPath, modelPath, outPath, runsArg, ...variants] = process.argv.slice(2);
@@ -38,7 +40,7 @@ for (const variant of variants) {
     );
     // Entry order = seeding by rating (matters for knockout-only events and final tiebreaks).
     const order = players.map((_, i) => i).sort((a, b) => players[b].mu - players[a].mu);
-    const t = new Tournament(order.map((i) => players[i]), ev.stages, model);
+    const t = new Tournament(order.map((i) => players[i]), ev.stages, model, [], variant === "elo" ? {} : ev.h2h ?? {});
     const res = t.simulate({ runs, seed: 1000 + k, ratingUncertainty: variant !== "kalman_nounc" && variant !== "elo", formSd: form });
     const p: number[][] = new Array(players.length);
     order.forEach((orig, j) => {
