@@ -6,3 +6,4 @@ data_cache/
 node_modules/
 dist/
 web/public/data/
+*.egg-info/
