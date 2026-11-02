@@ -58,10 +58,11 @@ def event_edges(hist: dict, ids: list[int], start: int, cp: C.CompositeParams) -
             if h is None:
                 continue
             n = int(np.searchsorted(h[0], start))
-            if n == 0:
+            # Same filters as the website export (C.h2h_final): 2+ meetings, |edge| >= 0.01.
+            if n < C.H2H_MIN_MEETINGS:
                 continue
             e = cp.h2h_coef * h[1][n - 1] / (n + cp.h2h_prior)
-            if abs(e) >= 1e-3:
+            if abs(e) >= C.H2H_MIN_ABS:
                 out[f"{a}-{b}"] = round(float(e), 4)
     return out
 

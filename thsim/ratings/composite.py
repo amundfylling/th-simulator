@@ -27,6 +27,9 @@ from thsim.ratings import models as M
 
 SCALE = 173.7178
 PARAMS_PATH = Path("reports/m8_params.json")
+# Pairs the website gets an edge for (the tournament backtest applies the same filters).
+H2H_MIN_MEETINGS = 2
+H2H_MIN_ABS = 0.01
 
 
 @dataclass
@@ -142,7 +145,7 @@ def h2h_edge(prep: M.Prepared, resid: np.ndarray, event: np.ndarray, prior: floa
 
 
 def h2h_final(prep: M.Prepared, resid: np.ndarray, cp: CompositeParams, players: set | None = None,
-              min_meetings: int = 2, min_abs: float = 0.01) -> dict[str, float]:
+              min_meetings: int = H2H_MIN_MEETINGS, min_abs: float = H2H_MIN_ABS) -> dict[str, float]:
     """Current pair edges in goal units, "idA-idB" (idA < idB) -> shift in idA's favour."""
     ok = ~prep.skip
     pa, pb = prep.players[prep.a[ok]], prep.players[prep.b[ok]]

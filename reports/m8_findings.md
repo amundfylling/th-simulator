@@ -43,14 +43,14 @@ on 2015–2021). Without that scaling, integrating the uncertainty costs about 2
 |---|---|---|---|---|---|---|
 | before: Kalman | **1.2076** | 0.0903 | 0.1074 | 1.2908 | 0.0956 | 0.1112 |
 | composite | 1.2277 | 0.0884 | 0.1048 | 1.3212 | 0.0936 | 0.1096 |
-| **after: composite + head-to-head** | 1.2153 | **0.0880** | **0.1046** | **1.2839** | **0.0936** | **0.1096** |
+| **after: composite + head-to-head** | 1.2163 | **0.0880** | **0.1045** | **1.2811** | **0.0936** | **0.1095** |
 
 Paired per event, the shipped model against the old one:
 
-- **RPS over finishing places**: −0.0022 and −0.0020, p < 0.001 in both windows. It is
-  better in 60% and 63% of events.
-- **Top-3 Brier**: −0.0028 (p < 0.001) and −0.0016 (p = 0.036).
-- **Winner log loss**: +0.008 (p = 0.58) and −0.007 (p = 0.76). This is noise in both
+- **RPS over finishing places**: −0.0023 and −0.0020, p < 0.001 in both windows. It is
+  better in 61% and 63% of events.
+- **Top-3 Brier**: −0.0028 (p < 0.001) and −0.0017 (p = 0.029).
+- **Winner log loss**: +0.009 (p = 0.62) and −0.010 (p = 0.67). This is noise in both
   directions.
 
 This is the first rating change that clearly moves the tournament backtest. M7's game-level
@@ -59,6 +59,9 @@ whole finishing order (RPS) and in who makes the podium. It does not show up in 
 winner metric, which a few upsets dominate. Head-to-head edges matter at tournament level.
 Without them, the composite is worse on winner log loss. With them, it is the best variant on
 2025–26.
+
+Head-to-head edges in this backtest use the same filters as the website export (2+ earlier
+meetings, |edge| ≥ 0.01 goals), so it measures what ships.
 
 The form shock was rechecked for the new rating on 2022–24, with candidates 0.2, 0.3, 0.45, 0.6
 and 0.75. 0.45 stays best.
