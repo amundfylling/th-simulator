@@ -312,7 +312,7 @@ def score(window: str, only_rule_ok: bool = False) -> dict:
                 tests[f"{v} vs {w}"] = {"mean_diff": float(d.mean()), "t_p": float(stats.ttest_1samp(d, 0).pvalue),
                                         "wilcoxon_p": float(stats.wilcoxon(d).pvalue), "n": int(len(d))}
     rel = {v: {k: metrics.reliability(np.array(a), np.array(b), bins=10) for k, (a, b) in c.items()} for v, c in calib.items()}
-    return {"summary": summary, "tests": tests, "reliability": rel, "by_kind": df.groupby(["variant", "kind"])[["winner_ll", "uniform_ll", "rps"]].mean()}
+    return {"summary": summary, "tests": tests, "reliability": rel, "rows": df, "by_kind": df.groupby(["variant", "kind"])[["winner_ll", "uniform_ll", "rps"]].mean()}
 
 
 def _categories(P: np.ndarray, k: int, shared: bool) -> np.ndarray:

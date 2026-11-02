@@ -18,6 +18,7 @@ import pandas as pd
 
 from thsim.data.loading import load_games, load_players, load_ranking
 from thsim.models import game_model
+from thsim.ratings import composite as C
 from thsim.ratings import models as M
 
 ACTIVE_YEARS = 6
@@ -41,13 +42,19 @@ def build(out: Path, as_of: date | None = None) -> None:
     players = load_players()
     ranking = load_ranking()
     params, form_sd = load_settings()
+    cp = C.load()  # composite rating (Kalman + h2h.puck.no-style Glicko-MoV + head-to-head), if fitted
     prep = M.prepare(games, players)
 
     # Game model: pre-game ratings, recency-weighted fit over the last FIT_YEARS.
-    r = M.run("kalman", prep, params)
+    r = C.run(prep, params, cp) if cp else M.run("kalman", prep, params)
     d = (r["mu1"] - r["mu2"]).to_numpy()
     var = (r["var1"] + r["var2"]).to_numpy()
     n1, n2 = M.prior_counts(prep.a, prep.b, prep.skip)
+    if cp and cp.h2h_coef:
+        # Pre-game head-to-head edges: the game model is fitted on the gap the engine will use.
+        event = games["tournament_uid"].factorize()[0]
+        edge, _ = C.h2h_edge(prep, C.residuals(prep, r, cp), event, cp.h2h_prior)
+        d = d + cp.h2h_coef * edge
     age = (as_of_day - prep.day) / 365.25
     fit_mask = (age <= FIT_YEARS) & (n1 >= 1) & (n2 >= 1) & ~prep.skip
     model = game_model.fit(
@@ -58,7 +65,7 @@ def build(out: Path, as_of: date | None = None) -> None:
     model_json = model.to_json() | {"form_sd": form_sd, "rating_units": "goals"}
 
     # Current ratings.
-    cur = M.kalman_final(prep, params, as_of_day)
+    cur = C.final(prep, params, cp, as_of_day) if cp else M.kalman_final(prep, params, as_of_day)
     cur = cur.merge(players, on="player_id", how="left")
     # Players known only to bordshockey.net have no Scorpion record: take the name from games.
     game_names = pd.concat([
@@ -100,13 +107,20 @@ def build(out: Path, as_of: date | None = None) -> None:
         "rows": rows,
     }, ensure_ascii=False, separators=(",", ":")))
     (out / "model.json").write_text(json.dumps(model_json, separators=(",", ":")))
+    h2h = {}
+    if cp and cp.h2h_coef:
+        h2h = C.h2h_final(prep, C.residuals(prep, r, cp), cp, players=set(cur["player_id"]))
+    (out / "h2h.json").write_text(json.dumps(h2h, separators=(",", ":")))
     meta = {
         "generated": as_of.isoformat(),
         "games": int(len(games)),
         "latest_game": str(games["date"].max().date()),
         "players": len(rows),
         "ranking_available": ranking is not None and len(ranking) > 0,
-        "rating_params": params.__dict__,
+        "rating_params": params.__dict__ | (C.newcomer(params, cp) if cp else {}),
+        "rating_model": "composite" if cp else "kalman",
+        "composite": cp.to_json() if cp else None,
+        "h2h_pairs": len(h2h),
         "game_model": {"beta_rr": model.beta_rr, "c_rr": model.c_rr, "beta_po": model.beta_po, "c_po": model.c_po,
                        "beta_ot": model.beta_ot},
     }
@@ -114,6 +128,10 @@ def build(out: Path, as_of: date | None = None) -> None:
         backtest = Path(f"reports/m5_tournaments_{window}.json")
         if backtest.exists():
             meta["tournament_backtest"] = json.loads(backtest.read_text())
+            # The composite rating's run on the same events (M8) joins the M5 variants.
+            m8 = Path(f"reports/m8_tournaments_{window}.json")
+            if cp and m8.exists():
+                meta["tournament_backtest"]["variants"] |= json.loads(m8.read_text())["variants"]
             break
     (out / "meta.json").write_text(json.dumps(meta, indent=1, default=str))
     print(f"Wrote {len(rows):,} players to {out}; model beta_rr={model.beta_rr:.3f} c={model.c_rr:.3f}")

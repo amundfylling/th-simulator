@@ -50,6 +50,8 @@ export class Tournament {
   private readonly playedByStage = new Map<string, PlayedGame[]>();
   private readonly sampler: GameSampler;
   private readonly strength: Float64Array;
+  /** pairShift[a * n + b]: head-to-head edge of player a over player b (indices), rating units. */
+  private readonly pairShift: Float64Array | null = null;
   private readonly out: GameOut = { g1: 0, g2: 0, ot: false };
   private readonly carrySources: Set<string>;
   /** The bracket that decides the title: its finals are the ones reported. */
@@ -60,9 +62,17 @@ export class Tournament {
     readonly stages: StageConfig[],
     model: GameModelJson,
     played: PlayedGame[] = [],
+    h2h: Record<string, number> = {},
   ) {
     this.n = players.length;
     players.forEach((p, i) => this.index.set(p.id, i));
+    for (const [key, shift] of Object.entries(h2h)) {
+      const [ia, ib] = key.split("-").map((x) => this.index.get(Number(x)));
+      if (ia === undefined || ib === undefined || !shift) continue;
+      this.pairShift ??= new Float64Array(this.n * this.n);
+      this.pairShift[ia * this.n + ib] = shift;
+      this.pairShift[ib * this.n + ia] = -shift;
+    }
     this.sampler = new GameSampler(model);
     this.strength = new Float64Array(this.n);
     for (const g of played) {
@@ -170,7 +180,8 @@ export class Tournament {
       out.ot = !!g.ot;
       return out;
     }
-    return this.sampler.play(this.strength[a] - this.strength[b], playoff, needWinner, rng, out);
+    const edge = this.pairShift ? this.pairShift[a * this.n + b] : 0;
+    return this.sampler.play(this.strength[a] - this.strength[b] + edge, playoff, needWinner, rng, out);
   }
 
   // --- round-robin groups ------------------------------------------------------
@@ -541,6 +552,11 @@ function validate(stages: StageConfig[]) {
 }
 
 /** Convenience wrapper. */
-export function simulateTournament(players: Player[], config: { stages: StageConfig[]; played?: PlayedGame[] }, model: GameModelJson, opts: SimOptions): SimResult {
-  return new Tournament(players, config.stages, model, config.played).simulate(opts);
+export function simulateTournament(
+  players: Player[],
+  config: { stages: StageConfig[]; played?: PlayedGame[]; h2h?: Record<string, number> },
+  model: GameModelJson,
+  opts: SimOptions,
+): SimResult {
+  return new Tournament(players, config.stages, model, config.played, config.h2h).simulate(opts);
 }

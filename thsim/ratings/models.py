@@ -179,6 +179,91 @@ def _glicko2(a, b, day, score, skip, n_players, tau, sigma0, phi0, c_day, phi_mi
     return m1, m2, v1, v2
 
 
+# --- Glicko-2 on a margin-of-victory score (h2h.puck.no style) ------------------
+#
+# h2h.puck.no (methodology at https://h2h.puck.no/ratings) runs Glicko-2 game by game
+# with a soft score s = 1 / (1 + exp(-mov_k * goal difference)) instead of 1 / 0.5 / 0,
+# and grows RD before each game by one volatility step per ``week_days`` of inactivity
+# (the standard Glicko-2 step adds one more for the game itself).
+
+
+@dataclass
+class GlickoMovParams:
+    tau: float = 1.5
+    sigma0: float = 0.3
+    phi0: float = 350.0
+    mov_k: float = 0.4
+    week_days: float = 7.0
+    gd_cap: float = 10.0
+    prior_mean: float = 0.0  # newcomer rating relative to 1500 (puck.no: 0)
+
+
+@nb.njit(cache=True)
+def _glicko2_mov(a, b, day, gd, skip, n_players, tau, sigma0, phi0, mov_k, week_days, gd_cap, prior_mean):
+    scale = 173.7178
+    mu = np.full(n_players, prior_mean / scale)
+    phi = np.full(n_players, phi0 / scale)
+    sig = np.full(n_players, sigma0)
+    last = np.full(n_players, -1, np.int64)
+    m1 = np.empty(len(a))
+    m2 = np.empty(len(a))
+    v1 = np.empty(len(a))
+    v2 = np.empty(len(a))
+    pmax = phi0 / scale
+    for i in range(len(a)):
+        for p in (a[i], b[i]):
+            if last[p] >= 0 and day[i] > last[p]:
+                weeks = np.floor((day[i] - last[p]) / week_days)
+                phi[p] = min(pmax, np.sqrt(phi[p] ** 2 + weeks * sig[p] ** 2))
+            last[p] = day[i]
+        x, y = a[i], b[i]
+        m1[i], m2[i] = mu[x] * scale + 1500.0, mu[y] * scale + 1500.0
+        v1[i], v2[i] = (phi[x] * scale) ** 2, (phi[y] * scale) ** 2
+        if skip[i]:
+            continue
+        s1 = 1.0 / (1.0 + np.exp(-mov_k * min(gd_cap, max(-gd_cap, gd[i]))))
+        new = np.empty(3)
+        for side in range(2):
+            p = x if side == 0 else y
+            o = y if side == 0 else x
+            s = s1 if side == 0 else 1.0 - s1
+            g = 1.0 / np.sqrt(1.0 + 3.0 * phi[o] ** 2 / np.pi**2)
+            e = 1.0 / (1.0 + np.exp(-g * (mu[p] - mu[o])))
+            v = 1.0 / (g * g * e * (1.0 - e))
+            delta = v * g * (s - e)
+            A = np.log(sig[p] ** 2)
+            ph2 = phi[p] ** 2
+            lo = A
+            if delta**2 > ph2 + v:
+                hi = np.log(delta**2 - ph2 - v)
+            else:
+                k = 1.0
+                while _vol_f(A - k * tau, delta, ph2, v, A, tau) < 0:
+                    k += 1.0
+                hi = A - k * tau
+            fa, fb = _vol_f(lo, delta, ph2, v, A, tau), _vol_f(hi, delta, ph2, v, A, tau)
+            for _ in range(60):
+                if abs(hi - lo) < 1e-6:
+                    break
+                cc = lo + (lo - hi) * fa / (fb - fa)
+                fc = _vol_f(cc, delta, ph2, v, A, tau)
+                if fc * fb <= 0:
+                    lo, fa = hi, fb
+                else:
+                    fa = fa / 2.0
+                hi, fb = cc, fc
+            f_a = np.exp(lo / 2.0)
+            phistar = min(pmax, np.sqrt(ph2 + f_a**2))
+            phinew = 1.0 / np.sqrt(1.0 / phistar**2 + 1.0 / v)
+            munew = mu[p] + phinew**2 * g * (s - e)
+            if side == 0:
+                new[0], new[1], new[2] = munew, phinew, f_a
+            else:
+                mu[x], phi[x], sig[x] = new[0], new[1], new[2]
+                mu[y], phi[y], sig[y] = munew, phinew, f_a
+    return m1, m2, v1, v2, mu, phi, sig, last
+
+
 # --- Gaussian goal-difference filter (online TrueSkill-through-time) --------------
 
 
@@ -245,6 +330,8 @@ def run(model: str, prep: Prepared, params) -> pd.DataFrame:
         v1 = v2 = np.zeros(len(m1))
     elif model == "glicko2":
         m1, m2, v1, v2 = _glicko2(prep.a, prep.b, prep.day, prep.score, prep.skip, n, *asdict(params).values())
+    elif model == "glicko2_mov":
+        m1, m2, v1, v2, *_ = _glicko2_mov(prep.a, prep.b, prep.day, prep.gd, prep.skip, n, *asdict(params).values())
     elif model == "kalman":
         m1, m2, v1, v2, *_ = _kalman(prep.a, prep.b, prep.day, prep.gd, prep.skip, prep.level, prep.birth_day, n,
                                      *asdict(params).values())
@@ -282,3 +369,13 @@ def kalman_final(prep: Prepared, params: KalmanParams, as_of_day: int) -> pd.Dat
     var = np.minimum(params.prior_sd**2, var + q)
     played = np.bincount(np.concatenate([prep.a, prep.b]), minlength=len(prep.players))
     return pd.DataFrame({"player_id": prep.players, "mu": mu, "sd": np.sqrt(var), "games": played, "last_day": last})
+
+
+def glicko_mov_final(prep: Prepared, params: GlickoMovParams, as_of_day: int) -> pd.DataFrame:
+    """Every player's current Glicko-MoV rating: mean and RD (grown to ``as_of_day``), rating points."""
+    *_, mu, phi, sig, last = _glicko2_mov(prep.a, prep.b, prep.day, prep.gd, prep.skip, len(prep.players),
+                                          *asdict(params).values())
+    scale = 173.7178
+    weeks = np.floor(np.maximum(0, as_of_day - last) / params.week_days)
+    phi = np.minimum(params.phi0 / scale, np.sqrt(phi**2 + weeks * sig**2))
+    return pd.DataFrame({"player_id": prep.players, "r": mu * scale + 1500.0, "rd": phi * scale})

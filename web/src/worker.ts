@@ -6,6 +6,7 @@ export interface SimRequest {
   players: Player[];
   stages: StageConfig[];
   played?: PlayedGame[];
+  h2h?: Record<string, number>;
   model: GameModelJson;
   runs: number;
   seed: number;
@@ -15,7 +16,7 @@ export interface SimRequest {
 self.onmessage = (e: MessageEvent<SimRequest>) => {
   const req = e.data;
   try {
-    const t = new Tournament(req.players, req.stages, req.model, req.played ?? []);
+    const t = new Tournament(req.players, req.stages, req.model, req.played ?? [], req.h2h ?? {});
     const result = t.simulate({
       runs: req.runs,
       seed: req.seed,

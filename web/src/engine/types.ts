@@ -93,6 +93,8 @@ export interface TournamentConfig {
   stages: StageConfig[];
   /** Games already played (live mode). Player ids, not indices. */
   played?: PlayedGame[];
+  /** Head-to-head edges: "idA-idB" (idA < idB) -> rating shift in idA's favour against idB. */
+  h2h?: Record<string, number>;
 }
 
 export interface SimOptions {

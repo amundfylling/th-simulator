@@ -8,7 +8,7 @@ tournaments.
 ```
 Python (thsim/)                                  TypeScript (web/)
   data: Scorpion + bordshockey.net games  ──►     engine/: tournament simulator
-  ratings: Kalman goal-difference filter          (groups, Swiss, knockout series,
+  ratings: Kalman + Glicko-MoV blend, h2h edge     (groups, Swiss, knockout series,
   game model: draw / OT / scoreline               byes, placement brackets, live mode)
   backtests: game, series, tournament    ──JSON─►  website: picker, format builder,
   export.py → web/public/data/*.json              heatmaps, road to the title
@@ -23,12 +23,14 @@ The same engine runs on the website (in a Web Worker) and in the tournament back
 |---|---|
 | `thsim/data/` | Download (runtime, never committed), normalise and de-duplicate the sources |
 | `thsim/structure.py` | Stage-structure inference: groups, playoff series, wins needed per round, top places |
-| `thsim/ratings/` | Rating candidates: Elo, margin-of-victory Elo, Glicko-2, time-weighted Bradley–Terry, Kalman goal-difference filter |
+| `thsim/ratings/` | Rating candidates: Elo, margin-of-victory Elo, Glicko-2, time-weighted Bradley–Terry, Kalman goal-difference filter, h2h.puck.no-style Glicko-2 on a margin score; `composite.py` is the shipped blend plus head-to-head edges |
 | `thsim/models/` | Ordered logit and the full game model (regulation, overtime, scorelines) |
 | `thsim/backtest_games.py` | Game-level walk-forward comparison of rating models (M2) |
 | `thsim/fit_game_model.py` | Game, series and shape checks for the game model (M3) |
 | `thsim/backtest_tournaments.py` | Tournament reconstruction and tournament-level backtest (M5) |
-| `thsim/export.py` | Current ratings + game model for the website |
+| `thsim/research/puck.py` | M8: what the h2h.puck.no ratings add (tuning, blend fit, game-level report) |
+| `thsim/research/puck_tournaments.py` | M8: tournament-level before/after |
+| `thsim/export.py` | Current ratings, head-to-head edges + game model for the website |
 | `web/src/engine/` | Tournament engine (TypeScript) |
 | `web/src/` | Website (React + Vite) |
 | `reports/` | Backtest reports for each milestone |
@@ -42,6 +44,10 @@ python -m thsim.facts                     # M1 data facts
 python -m thsim.backtest_games            # M2 rating comparison (~15 min)
 python -m thsim.fit_game_model            # M3 game model report
 python -m thsim.backtest_tournaments all  # M5 tournament backtest (needs web/ deps)
+python -m thsim.research.puck tune        # M8 tune the Glicko-MoV rating (~1 h)
+python -m thsim.research.puck fit         # M8 blend weight + head-to-head -> reports/m8_params.json
+python -m thsim.research.puck report --final
+python -m thsim.research.puck_tournaments --window select   # after backtest_tournaments build/simulate
 python -m thsim.export                    # write web/public/data/
 pytest
 

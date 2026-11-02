@@ -30,14 +30,30 @@ export interface AppData {
   players: RankedPlayer[];
   model: GameModelJson;
   meta: Meta;
+  /** Head-to-head edges "idA-idB" (idA < idB) -> rating shift in idA's favour; empty when not exported. */
+  h2h: Record<string, number>;
+}
+
+/** The head-to-head edges between the given players only (what the engine needs for one event). */
+export function h2hFor(all: Record<string, number>, ids: number[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  const sorted = [...ids].sort((a, b) => a - b);
+  for (let i = 0; i < sorted.length; i++)
+    for (let j = i + 1; j < sorted.length; j++) {
+      const key = `${sorted[i]}-${sorted[j]}`;
+      if (key in all) out[key] = all[key];
+    }
+  return out;
 }
 
 export async function loadData(): Promise<AppData> {
   const base = `${import.meta.env.BASE_URL}data/`;
-  const [p, model, meta] = await Promise.all([
+  const [p, model, meta, h2h] = await Promise.all([
     fetch(`${base}players.json`).then((r) => r.json()),
     fetch(`${base}model.json`).then((r) => r.json()),
     fetch(`${base}meta.json`).then((r) => r.json()),
+    // Optional: older exports have no head-to-head file.
+    fetch(`${base}h2h.json`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
   ]);
   const cols: string[] = p.columns;
   const at = (k: string) => cols.indexOf(k);
@@ -53,7 +69,7 @@ export async function loadData(): Promise<AppData> {
     games: r[at("games")] as number,
     last: r[at("last")] as string,
   }));
-  return { players, model, meta };
+  return { players, model, meta, h2h: h2h ?? {} };
 }
 
 /** Display rating: 1500 + 100 per goal of expected margin. */
