@@ -288,9 +288,9 @@ describe("same-day form (live mode)", () => {
       { stage: "groups", p1: 101, p2: 102, g1: 1, g2: 1 },
     ];
     const t = new Tournament(ps, cfg, model, played);
-    const on = t.simulate({ runs: 4000, seed: 5 });
-    const off = t.simulate({ runs: 4000, seed: 5, dayForm: false });
-    expect(on.placeCounts[3][0]).toBeGreaterThan(off.placeCounts[3][0] + 300);
+    const on = t.simulate({ runs: 20000, seed: 5 });
+    const off = t.simulate({ runs: 20000, seed: 5, dayForm: false });
+    expect(on.placeCounts[3][0]).toBeGreaterThan(off.placeCounts[3][0] + 600); // about +1,300 expected (sd ~100)
     // no played games: identical to the old draw
     const t0 = new Tournament(ps, cfg, model);
     expect(t0.simulate({ runs: 500, seed: 2 }).placeCounts).toEqual(t0.simulate({ runs: 500, seed: 2, dayForm: false }).placeCounts);
