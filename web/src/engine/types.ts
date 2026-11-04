@@ -52,7 +52,7 @@ export interface GroupStageConfig extends BaseStage {
   points?: [number, number, number];
   tiebreak?: Tiebreak[];
   /** How seeds are spread over groups. Seeds follow the World Ranking (see `worldRankOrder`). Default snake. */
-  seeding?: "snake" | "block" | "random";
+  seeding?: "snake" | "abba" | "block" | "random";
   /** Fixed group composition as player ids (e.g. a historical draw); overrides `groups`/`seeding`. */
   groupsExplicit?: number[][];
   /** Carry over games between players who met in this earlier group stage. */

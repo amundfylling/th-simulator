@@ -288,7 +288,7 @@ function Groups({ stage, stages, result, si, showTip }: { stage: StageConfig & {
   const fromEntry = stage.source.length === 1 && stage.source[0].from === "entry" && !stage.source[0].ranks && stage.seeding !== "random";
   const idx = result.players.map((_, i) => i);
   const G = Math.max(1, Math.min(stage.groups, idx.length));
-  const groups = fromEntry ? assignGroups(worldRankOrder(idx, result.players), G, stage.seeding === "block" ? "block" : "snake") : [idx.filter((i) => st.entered[i] > 0)];
+  const groups = fromEntry ? assignGroups(worldRankOrder(idx, result.players), G, stage.seeding === "random" ? "snake" : stage.seeding) : [idx.filter((i) => st.entered[i] > 0)];
   const next = stages.slice(si + 1).filter((s) => s.source.some((src) => src.from === stage.id && (src.ranks?.[0] ?? 1) === 1));
   const nextIdx = next.length ? stages.indexOf(next[0]) : -1;
   return (

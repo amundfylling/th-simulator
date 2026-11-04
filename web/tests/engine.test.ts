@@ -15,6 +15,12 @@ describe("helpers", () => {
     const sizes = assignGroups([...Array(10).keys()], 6, "block").map((g) => g.length);
     expect(sizes).toEqual([2, 2, 1, 2, 2, 1]);
   });
+  it("spreads seeds snake and ABBA style", () => {
+    const seeds = [...Array(16).keys()].map((i) => i + 1);
+    expect(assignGroups(seeds, 4, "snake")[0]).toEqual([1, 8, 9, 16]);
+    expect(assignGroups(seeds, 4, "abba")[0]).toEqual([1, 8, 12, 13]);
+    expect(assignGroups(seeds, 4, "abba")[3]).toEqual([4, 5, 9, 16]);
+  });
   it("seeds groups by world rank, unranked last in entry order", () => {
     const ps = [{ worldRank: null }, { worldRank: 7 }, { worldRank: 2 }, {}, { worldRank: 40 }];
     expect(worldRankOrder([0, 1, 2, 3, 4], ps)).toEqual([2, 1, 4, 0, 3]);
