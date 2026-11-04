@@ -24,7 +24,7 @@ export interface Meta {
   ranking_available: boolean;
   rating_params?: { prior_mean: number; prior_sd: number; level_prior: number };
   /** LightGBM layer: feature vector of a player with no games (mu is replaced per player). */
-  gbm?: { rounds: number; newcomer: (number | null)[] } | null;
+  gbm?: { rounds: number; newcomer: (number | null)[]; kal_level_prior?: number } | null;
   tournament_backtest?: {
     window: [string, string];
     variants: Record<string, { events: number; winner_ll: number; uniform_ll: number; rps: number; top3_brier: number; fav_won: number }>;
@@ -68,11 +68,15 @@ export function gbmRequest(
   const newcomer = data.meta.gbm?.newcomer;
   if (!data.gbm || !newcomer) return null;
   const muAt = data.gbm.side.indexOf("mu");
+  const kalAt = data.gbm.side.indexOf("kal");
+  // The newcomer vector is level-neutral; the Kalman prior moves with the event level like the composite rating does.
+  const kalShift = level > 0 ? -(data.meta.gbm?.kal_level_prior ?? 0) * (level - 3) : 0;
   const players = entries.map((p) => {
     let feat = p.feat;
     if (!feat) {
       feat = [...newcomer];
       if (muAt >= 0) feat[muAt] = p.mu;
+      if (kalAt >= 0 && feat[kalAt] !== null) feat[kalAt] = (feat[kalAt] as number) + kalShift;
     }
     return { id: p.id, mu: p.mu, sd: p.sd, feat };
   });

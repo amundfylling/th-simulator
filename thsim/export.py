@@ -139,7 +139,7 @@ def build(out: Path, as_of: date | None = None) -> None:
         "rating_model": "composite" if cp else "kalman",
         "composite": cp.to_json() if cp else None,
         "h2h_pairs": len(h2h),
-        "gbm": {"rounds": gbm_settings["rounds"], "newcomer": [None if not np.isfinite(newcomer_feat[c]) else round(newcomer_feat[c], 4)
+        "gbm": {"rounds": gbm_settings["rounds"], "kal_level_prior": params.level_prior, "newcomer": [None if not np.isfinite(newcomer_feat[c]) else round(newcomer_feat[c], 4)
                                                                 for c in G.FT.SIDE_COLS]} if gbm_json else None,
         "game_model": {"beta_rr": model.beta_rr, "c_rr": model.c_rr, "beta_po": model.beta_po, "c_po": model.c_po,
                        "beta_ot": model.beta_ot},
