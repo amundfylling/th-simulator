@@ -88,6 +88,8 @@ export interface PlayedGame {
   g1: number;
   g2: number;
   ot?: boolean;
+  /** Not played on the table (counts for standings, says nothing about form). */
+  walkover?: boolean;
 }
 
 export interface TournamentConfig {

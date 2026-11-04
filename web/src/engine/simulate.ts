@@ -133,7 +133,7 @@ export class Tournament {
     for (const g of this.playedList) {
       const a = this.index.get(g.p1);
       const b = this.index.get(g.p2);
-      if (a === undefined || b === undefined || a === b) continue;
+      if (a === undefined || b === undefined || a === b || g.walkover) continue;
       games.push({ a, b, gd: g.g1 - g.g2, shift: this.pairShift ? this.pairShift[a * this.n + b] : 0 });
     }
     if (!games.length) return null;

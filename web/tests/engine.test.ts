@@ -291,6 +291,10 @@ describe("same-day form (live mode)", () => {
     const on = t.simulate({ runs: 20000, seed: 5 });
     const off = t.simulate({ runs: 20000, seed: 5, dayForm: false });
     expect(on.placeCounts[3][0]).toBeGreaterThan(off.placeCounts[3][0] + 600); // about +1,300 expected (sd ~100)
+    // walkovers count for the table but not for form
+    const wo = played.map((g) => ({ ...g, walkover: true }));
+    const tw = new Tournament(ps, cfg, model, wo);
+    expect(tw.simulate({ runs: 500, seed: 2 }).placeCounts).toEqual(tw.simulate({ runs: 500, seed: 2, dayForm: false }).placeCounts);
     // no played games: identical to the old draw
     const t0 = new Tournament(ps, cfg, model);
     expect(t0.simulate({ runs: 500, seed: 2 }).placeCounts).toEqual(t0.simulate({ runs: 500, seed: 2, dayForm: false }).placeCounts);

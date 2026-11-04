@@ -199,7 +199,7 @@ export function convertTournament(
           if (a === undefined || b === undefined || m.isBye) continue;
           const wo = walkoverScore(m.walkover);
           const score: [number, number] | null = wo ?? (m.homeScore != null && m.awayScore != null ? [m.homeScore, m.awayScore] : null);
-          if (score) played.push({ stage: sid(s.id), p1: a, p2: b, g1: score[0], g2: score[1], ot: !!m.wentToOvertime });
+          if (score) played.push({ stage: sid(s.id), p1: a, p2: b, g1: score[0], g2: score[1], ot: !!m.wentToOvertime, ...(wo ? { walkover: true } : {}) });
         }
     } else if (s.type === "Playoff") {
       // The championship band: rounds whose band starts at the stage's first place.
@@ -231,7 +231,7 @@ export function convertTournament(
             // A walked-over series: the winner takes the games it needed.
             const need = r.gamesToWin;
             for (let k = 0; k < need; k++)
-              played.push({ stage: stageKey, p1: a, p2: b, g1: wo[0], g2: wo[1] });
+              played.push({ stage: stageKey, p1: a, p2: b, g1: wo[0], g2: wo[1], walkover: true });
             continue;
           }
           for (const g of (m.games ?? []).slice().sort((x, y) => x.gameNumber - y.gameNumber)) {
