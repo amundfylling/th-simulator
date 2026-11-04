@@ -191,15 +191,17 @@ export class Tournament {
     const legs = stage.legs ?? 1;
     const pts = stage.points ?? DEFAULT_POINTS;
     const tiebreak = stage.tiebreak ?? DEFAULT_TIEBREAK;
+    // Groups are always seeded by the World Ranking, whatever the entry order.
+    const seeded = worldRankOrder(entrants, this.players);
     let groups: number[][];
     if (stage.groupsExplicit) {
       const inStage = new Set(entrants);
       groups = stage.groupsExplicit.map((ids) => ids.map((id) => this.index.get(id)!).filter((p) => p !== undefined && inStage.has(p)));
     } else {
-      const order = stage.seeding === "random" ? rng.shuffle(entrants.slice()) : entrants;
-      groups = assignGroups(order, G, stage.seeding === "block" ? "block" : "snake");
+      const order = stage.seeding === "random" ? rng.shuffle(entrants.slice()) : seeded;
+      groups = assignGroups(order, G, stage.seeding === "random" ? "snake" : stage.seeding);
     }
-    const seedOf = new Map(entrants.map((p, i) => [p, i]));
+    const seedOf = new Map(seeded.map((p, i) => [p, i]));
     const byPosition: Standing[][] = [];
     for (const members of groups) {
       const table = members.map((p) => standing(p, seedOf.get(p)!, rng));
@@ -470,8 +472,25 @@ export function rankTable(
   });
 }
 
-/** Spread seeded entrants over G groups (snake: 1..G, G..1, ...; block: consecutive). */
-export function assignGroups<T>(order: T[], G: number, seeding: "snake" | "block" = "snake"): T[][] {
+/**
+ * Entrants (player indices) in World Ranking order: best rank first, unranked players
+ * after all ranked ones, ties and unranked players keeping their given order.
+ */
+export function worldRankOrder(entrants: number[], players: { worldRank?: number | null }[]): number[] {
+  const rank = (p: number) => players[p].worldRank ?? Infinity;
+  return entrants
+    .map((p, i) => [p, i] as const)
+    .sort(([a, i], [b, j]) => rank(a) - rank(b) || i - j)
+    .map(([p]) => p);
+}
+
+/**
+ * Spread seeded entrants over G groups, one row of G seeds at a time.
+ * snake: rows run forward, back, forward, back (1..G, G..1, ...).
+ * abba: rows run forward, back, back, forward, then repeat (A B B A).
+ * block: consecutive seeds share a group.
+ */
+export function assignGroups<T>(order: T[], G: number, seeding: "snake" | "abba" | "block" = "snake"): T[][] {
   const groups: T[][] = Array.from({ length: G }, () => []);
   order.forEach((p, i) => {
     let g: number;
@@ -480,7 +499,8 @@ export function assignGroups<T>(order: T[], G: number, seeding: "snake" | "block
     else {
       const round = Math.floor(i / G);
       const pos = i % G;
-      g = round % 2 === 0 ? pos : G - 1 - pos;
+      const forward = seeding === "abba" ? round % 4 === 0 || round % 4 === 3 : round % 2 === 0;
+      g = forward ? pos : G - 1 - pos;
     }
     groups[g].push(p);
   });

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { assignGroups } from "../engine/simulate";
+import { assignGroups, worldRankOrder } from "../engine/simulate";
 import type { SimResult, StageConfig } from "../engine/types";
 import { displayRating } from "../data";
 
@@ -36,14 +36,20 @@ export function Results({ result, stages }: Props) {
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
   const [sortKey, setSortKey] = useState<"exp" | "win" | "seed">("exp");
 
-  const rows: Row[] = useMemo(
-    () =>
-      result.players.map((pl, i) => {
+  const rows: Row[] = useMemo(() => {
+    // Seeds follow the World Ranking when the event opens with a drawn group stage, the entry order otherwise.
+    const first = stages[0];
+    const byRank = first?.type === "groups" && !first.groupsExplicit && first.seeding !== "random";
+    const idx = result.players.map((_, i) => i);
+    const order = byRank ? worldRankOrder(idx, result.players) : idx;
+    const seedOf = new Map(order.map((p, k) => [p, k + 1]));
+    return result.players
+      .map((pl, i) => {
         const p = result.placeCounts[i].map((c) => c / R);
-        return { i, id: pl.id, name: pl.name, country: pl.country, seed: i + 1, p, expPlace: p.reduce((s, v, k) => s + v * (k + 1), 0) };
-      }),
-    [result, R],
-  );
+        return { i, id: pl.id, name: pl.name, country: pl.country, seed: seedOf.get(i)!, p, expPlace: p.reduce((s, v, k) => s + v * (k + 1), 0) };
+      })
+      .sort((a, b) => a.seed - b.seed);
+  }, [result, R, stages]);
   const sorted = useMemo(() => {
     const r = rows.slice();
     if (sortKey === "win") r.sort((a, b) => b.p[0] - a.p[0] || a.expPlace - b.expPlace);
@@ -288,7 +294,7 @@ function Groups({ stage, stages, result, si, showTip }: { stage: StageConfig & {
   const fromEntry = stage.source.length === 1 && stage.source[0].from === "entry" && !stage.source[0].ranks && stage.seeding !== "random";
   const idx = result.players.map((_, i) => i);
   const G = Math.max(1, Math.min(stage.groups, idx.length));
-  const groups = fromEntry ? assignGroups(idx, G, stage.seeding === "block" ? "block" : "snake") : [idx.filter((i) => st.entered[i] > 0)];
+  const groups = fromEntry ? assignGroups(worldRankOrder(idx, result.players), G, stage.seeding === "random" ? "snake" : stage.seeding) : [idx.filter((i) => st.entered[i] > 0)];
   const next = stages.slice(si + 1).filter((s) => s.source.some((src) => src.from === stage.id && (src.ranks?.[0] ?? 1) === 1));
   const nextIdx = next.length ? stages.indexOf(next[0]) : -1;
   return (

@@ -15,6 +15,8 @@ export interface FormatState {
   swissRounds: number;
   bPlayoff: boolean;
   points: [number, number, number];
+  /** How World Ranking seeds are spread over groups. Default snake. */
+  seeding?: "snake" | "abba";
 }
 
 export const defaultFormat = (n: number): FormatState => ({
@@ -28,6 +30,7 @@ export const defaultFormat = (n: number): FormatState => ({
   swissRounds: Math.max(3, Math.ceil(Math.log2(Math.max(2, n))) + 1),
   bPlayoff: false,
   points: [2, 1, 0],
+  seeding: "snake",
 });
 
 export function knockoutSize(f: FormatState, n: number): number {
@@ -59,6 +62,7 @@ export function buildStages(f: FormatState, n: number): StageConfig[] {
       groups: f.kind === "league" ? 1 : Math.max(1, Math.min(f.groups, Math.floor(n / 2))),
       legs: f.legs,
       points: f.points,
+      seeding: f.seeding ?? "snake",
       source: [{ from: "entry" }],
       places: 1,
     });

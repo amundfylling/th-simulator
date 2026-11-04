@@ -47,6 +47,16 @@ export function FormatBuilder({ n, format: f, onChange, stages, customJson, onCu
             <span className="muted small">≈ {groupSize} per group</span>
           </label>
         )}
+        {f.kind === "groups_ko" && (
+          <label>
+            Group seeding
+            <select value={f.seeding ?? "snake"} onChange={(e) => set({ seeding: e.target.value as "snake" | "abba" })}>
+              <option value="snake">Snake</option>
+              <option value="abba">ABBA</option>
+            </select>
+            <span className="muted small">by world rank</span>
+          </label>
+        )}
         {(f.kind === "groups_ko" || f.kind === "league") && (
           <label>
             Round-robin
