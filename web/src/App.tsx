@@ -4,7 +4,7 @@ import { FormatBuilder } from "./components/FormatBuilder";
 import { ImportBox, importLink } from "./components/ImportBox";
 import { PlayerPicker } from "./components/PlayerPicker";
 import { Results } from "./components/Results";
-import { h2hFor, loadData, type AppData, type RankedPlayer } from "./data";
+import { gbmRequest, h2hFor, loadData, type AppData, type RankedPlayer } from "./data";
 import type { Player, SimResult, StageConfig } from "./engine/types";
 import type { ImportResult, RatingDefaults } from "./import/tableHockeyEu";
 import { buildStages, defaultFormat, type FormatState } from "./formats";
@@ -129,6 +129,7 @@ export function App() {
       players, stages, model: data.model, runs, seed: Math.floor(Math.random() * 2 ** 31), ratingUncertainty: uncertainty,
       played: imported?.result.played,
       h2h: h2hFor(data.h2h, players.map((p) => p.id)),
+      gbm: gbmRequest(data, entries, imported?.result.level ?? 0),
     };
     const runStages = stages;
     setProgress(0);
@@ -268,6 +269,13 @@ function About({ data }: { data: AppData }) {
           met often (also from h2h.puck.no).
         </p>
       )}
+      {data.gbm && (
+        <p>
+          On top of the ratings, a gradient-boosted model (LightGBM) adjusts the odds of every pairing. It looks at several
+          ratings at once, how many games each player has played, how often they draw, recent form and the head-to-head
+          record. It helps most for players with few games behind them.
+        </p>
+      )}
       <p>
         Each simulated tournament draws every player's strength once from that uncertainty. Games are then played with a model
         fitted on real results: how often games are drawn at each strength gap, real scorelines (so goal difference tiebreaks
@@ -288,11 +296,14 @@ function Backtest({ data }: { data: AppData }) {
   if (!bt) return null;
   const v = bt.variants;
   const previous = v["kalman_form0.45"] ?? v["kalman"];
-  const model = v["composite+h2h_form0.45"] ?? previous;
+  const ratingsOnly = v["composite+h2h_form0.45"];
+  const model = (data.gbm ? v["gbm_form0.45"] : undefined) ?? ratingsOnly ?? previous;
   if (!model) return null;
   const gm = (ll: number) => `${(Math.exp(-ll) * 100).toFixed(1)}%`;
   type Row = [string, { winner_ll: number; fav_won: number; rps: number } | undefined, string];
-  const before: Row[] = model !== previous ? [["Goal-difference rating only", previous, "the model before the head-to-head update"]] : [];
+  const before: Row[] = [];
+  if (ratingsOnly && model !== ratingsOnly) before.push(["Ratings + head-to-head only", ratingsOnly, "without the LightGBM layer"]);
+  if (previous && model !== previous) before.push(["Goal-difference rating only", previous, "the original model"]);
   const rows: Row[] = [
     ["This simulator", model, "ratings with uncertainty, form, real formats"],
     ...before,

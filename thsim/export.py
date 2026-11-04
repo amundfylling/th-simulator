@@ -18,6 +18,7 @@ import pandas as pd
 
 from thsim.data.loading import load_games, load_players, load_ranking
 from thsim.models import game_model
+from thsim.models import gbm as G
 from thsim.ratings import composite as C
 from thsim.ratings import models as M
 
@@ -86,6 +87,17 @@ def build(out: Path, as_of: date | None = None) -> None:
     cur = cur.loc[keep & cur["name"].notna()].copy()
     cur = cur.sort_values(["world_rank", "mu"], ascending=[True, False], na_position="last")
 
+    # LightGBM layer (M9): per-player frozen features on the export date, and the model itself.
+    gbm_settings = G.load_settings() if cp else None
+    feats, newcomer_feat, gbm_json = None, None, None
+    if gbm_settings:
+        feats, newcomer_feat = G.current_features(games, players, params, cp, pd.Timestamp(as_of), cur["player_id"])
+        gbm_json = train_gbm(games, players, params, cp, as_of, gbm_settings["rounds"])
+
+    def feat_of(pid):
+        v = feats.loc[pid].to_numpy(float)
+        return [None if not np.isfinite(x) else round(float(x), 4) for x in v]
+
     rows = [
         [
             int(p.player_id),
@@ -98,19 +110,25 @@ def build(out: Path, as_of: date | None = None) -> None:
             round(float(p.sd), 3),
             int(p.games),
             p.last,
-        ]
+        ] + ([feat_of(p.player_id)] if feats is not None else [])
         for p in cur.itertuples()
     ]
     out.mkdir(parents=True, exist_ok=True)
     (out / "players.json").write_text(json.dumps({
-        "columns": ["id", "name", "country", "ithf_id", "world_rank", "ranking_points", "mu", "sd", "games", "last"],
+        "columns": ["id", "name", "country", "ithf_id", "world_rank", "ranking_points", "mu", "sd", "games", "last"]
+        + (["feat"] if feats is not None else []),
         "rows": rows,
     }, ensure_ascii=False, separators=(",", ":")))
     (out / "model.json").write_text(json.dumps(model_json, separators=(",", ":")))
     h2h = {}
     if cp and cp.h2h_coef:
-        h2h = C.h2h_final(prep, C.residuals(prep, r, cp), cp, players=set(cur["player_id"]))
+        h2h = C.h2h_final(prep, C.residuals(prep, r, cp), cp, players=set(cur["player_id"]), with_meetings=True)
     (out / "h2h.json").write_text(json.dumps(h2h, separators=(",", ":")))
+    gbm_path = out / "gbm.json"
+    if gbm_json:
+        gbm_path.write_text(json.dumps(gbm_json, separators=(",", ":")))
+    else:
+        gbm_path.unlink(missing_ok=True)
     meta = {
         "generated": as_of.isoformat(),
         "games": int(len(games)),
@@ -121,6 +139,8 @@ def build(out: Path, as_of: date | None = None) -> None:
         "rating_model": "composite" if cp else "kalman",
         "composite": cp.to_json() if cp else None,
         "h2h_pairs": len(h2h),
+        "gbm": {"rounds": gbm_settings["rounds"], "newcomer": [None if not np.isfinite(newcomer_feat[c]) else round(newcomer_feat[c], 4)
+                                                                for c in G.FT.SIDE_COLS]} if gbm_json else None,
         "game_model": {"beta_rr": model.beta_rr, "c_rr": model.c_rr, "beta_po": model.beta_po, "c_po": model.c_po,
                        "beta_ot": model.beta_ot},
     }
@@ -132,9 +152,24 @@ def build(out: Path, as_of: date | None = None) -> None:
             m8 = Path(f"reports/m8_tournaments_{window}.json")
             if cp and m8.exists():
                 meta["tournament_backtest"]["variants"] |= json.loads(m8.read_text())["variants"]
+            m9 = Path(f"reports/m9_tournaments_{window}.json")
+            if gbm_json and m9.exists():
+                meta["tournament_backtest"]["variants"] |= json.loads(m9.read_text())["variants"]
             break
     (out / "meta.json").write_text(json.dumps(meta, indent=1, default=str))
     print(f"Wrote {len(rows):,} players to {out}; model beta_rr={model.beta_rr:.3f} c={model.c_rr:.3f}")
+
+
+def train_gbm(games, players, params, cp, as_of, rounds: int) -> dict:
+    """The LightGBM layer on frozen features over the last G.FIT_YEARS, a fixed number of rounds."""
+    from thsim.backtest_games import Context
+    from thsim.research import features as FT
+
+    ctx = Context(games, players)
+    f = FT.build(ctx, games, params, cp, freeze=True)
+    lo = np.datetime64(pd.Timestamp(as_of) - pd.DateOffset(years=G.FIT_YEARS))
+    rows = ctx.known & (ctx.rr | ctx.po) & (ctx.date >= lo)
+    return G.to_json(G.train(f, ctx.y3, rows, rounds=rounds))
 
 
 def main() -> None:

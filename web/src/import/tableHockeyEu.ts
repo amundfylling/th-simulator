@@ -98,6 +98,8 @@ export interface ImportResult {
   stages: StageConfig[];
   played: PlayedGame[];
   notes: string[];
+  /** Event level from table-hockey.eu (1 = majors .. 6), 0 when unknown. */
+  level: number;
 }
 
 /** Name key that survives ASCII spellings: "Sørstrømmen" and "Sorstrommen" match. */
@@ -249,5 +251,5 @@ export function convertTournament(
       `${newcomers.length} player${newcomers.length > 1 ? "s have" : " has"} no rating history and start${newcomers.length > 1 ? "" : "s"} as a newcomer for a level ${level || "?"} event.`,
     );
   }
-  return { name: t.name, status: t.status ?? "", entries, newcomers, stages: out, played, notes };
+  return { name: t.name, status: t.status ?? "", entries, newcomers, stages: out, played, notes, level };
 }
