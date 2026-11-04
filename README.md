@@ -76,8 +76,10 @@ On the website, a table-hockey.eu tournament link (e.g. `https://table-hockey.eu
 loads the entry list, the real stages (groups, playoff series lengths, bronze, which places feed
 which bracket) and every game played so far from its public API, then simulates what is still
 open. Players are matched by ITHF id, then by name; anyone without rating history starts as a
-newcomer for the event's level. If a browser blocks the API, build with `VITE_TH_PROXY` set to a
-relay URL prefix.
+newcomer for the event's level. table-hockey.eu does not let other sites read its API, so the
+site goes through public CORS relays. For a dependable relay of your own, deploy
+`proxy/worker.js` as a free Cloudflare Worker and set the repository variable `TH_PROXY` to
+`https://<worker>.workers.dev/?url=`; the nightly build picks it up.
 
 ## Deployment
 

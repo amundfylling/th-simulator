@@ -10,15 +10,29 @@ interface Props {
   onClear: () => void;
 }
 
-/** Optional relay for browsers that block the API (set VITE_TH_PROXY to a URL prefix at build time). */
-const PROXY = import.meta.env.VITE_TH_PROXY as string | undefined;
+/**
+ * table-hockey.eu does not allow other sites to read its API, so requests go through a relay.
+ * VITE_TH_PROXY (a URL prefix, set at build time) is tried first, then public CORS relays.
+ */
+const RELAYS: ((url: string) => string)[] = [
+  ...(import.meta.env.VITE_TH_PROXY ? [(u: string) => `${import.meta.env.VITE_TH_PROXY}${encodeURIComponent(u)}`] : []),
+  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+];
 
 async function load(id: number) {
   try {
     return await fetchTournament(id);
   } catch (e) {
-    if (!PROXY) throw e;
-    return fetchTournament(id, (url, init) => fetch(`${PROXY}${encodeURIComponent(String(url))}`, init));
+    let last = e;
+    for (const relay of RELAYS) {
+      try {
+        return await fetchTournament(id, (url, init) => fetch(relay(String(url)), init));
+      } catch (err) {
+        last = err;
+      }
+    }
+    throw last;
   }
 }
 

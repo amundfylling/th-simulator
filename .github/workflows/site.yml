@@ -37,6 +37,9 @@ jobs:
         working-directory: web
       - run: npm run build
         working-directory: web
+        env:
+          # Optional relay for table-hockey.eu imports (repository variable), see proxy/worker.js.
+          VITE_TH_PROXY: ${{ vars.TH_PROXY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
