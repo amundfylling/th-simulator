@@ -1,14 +1,15 @@
 /**
  * Simulate reconstructed historical tournaments with the website's engine.
  * Usage: tsx scripts/backtest.ts events.json model.json out.json runs variant...
- * Variants: kalman | kalman_form<sd> | kalman_nounc | elo
+ * Variants: kalman | kalman_form<sd> | kalman_nounc | elo, optionally suffixed _day<obs sd>
+ * (live mode: strengths updated from the event's `played` games; _day0 turns that off).
  * With GBM_MODEL=path/to/gbm.json and events whose players carry `feat`, the pair shifts come
  * from the LightGBM layer (the same code the website runs) instead of the plain h2h edges.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { Gbm, pairShifts, type GbmJson, type PairContext } from "../src/engine/gbm";
 import { Tournament } from "../src/engine/simulate";
-import type { GameModelJson, Player, StageConfig } from "../src/engine/types";
+import type { GameModelJson, PlayedGame, Player, StageConfig } from "../src/engine/types";
 
 interface EventPlayer {
   id: number;
@@ -26,6 +27,8 @@ interface Event {
   /** Optional head-to-head edges ("idA-idB" -> shift for idA), frozen at the event's start. */
   h2h?: Record<string, number | [number, number]>;
   ctx?: PairContext;
+  /** Games already played (live-mode backtests). */
+  played?: PlayedGame[];
 }
 
 const [eventsPath, modelPath, outPath, runsArg, ...variants] = process.argv.slice(2);
@@ -46,17 +49,25 @@ const t0 = Date.now();
 
 for (const variant of variants) {
   out[variant] = {};
-  const form = variant.startsWith("kalman_form") ? Number(variant.slice("kalman_form".length)) : 0;
+  const day = variant.match(/_day([\d.]+)$/);
+  const base = day ? variant.slice(0, day.index) : variant;
+  const form = base.startsWith("kalman_form") ? Number(base.slice("kalman_form".length)) : 0;
   data.events.forEach((ev: Event, k: number) => {
     const players: Player[] = ev.players.map((p) =>
-      variant === "elo"
+      base === "elo"
         ? { id: p.id, name: p.name, mu: (p.elo - 1500) * data.elo_scale, sd: 0 }
         : { id: p.id, name: p.name, mu: p.mu, sd: p.sd },
     );
     // Entry order = seeding by rating (matters for knockout-only events and final tiebreaks).
     const order = players.map((_, i) => i).sort((a, b) => players[b].mu - players[a].mu);
-    const t = new Tournament(order.map((i) => players[i]), ev.stages, model, [], variant === "elo" ? {} : shifts(ev));
-    const res = t.simulate({ runs, seed: 1000 + k, ratingUncertainty: variant !== "kalman_nounc" && variant !== "elo", formSd: form });
+    const t = new Tournament(order.map((i) => players[i]), ev.stages, model, ev.played ?? [], base === "elo" ? {} : shifts(ev));
+    const res = t.simulate({
+      runs,
+      seed: 1000 + k,
+      ratingUncertainty: base !== "kalman_nounc" && base !== "elo",
+      formSd: form,
+      ...(day ? { dayForm: Number(day[1]) > 0, dayFormObsSd: Number(day[1]) } : {}),
+    });
     const p: number[][] = new Array(players.length);
     order.forEach((orig, j) => {
       p[orig] = res.placeCounts[j].map((c) => Math.round((c / runs) * 1e5) / 1e5);

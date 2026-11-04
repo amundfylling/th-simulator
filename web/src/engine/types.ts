@@ -21,6 +21,8 @@ export interface GameModelJson {
   };
   /** Per-player per-event form shock sd, in rating units. */
   form_sd?: number;
+  /** Live mode: per-game goal-difference noise used to update strengths from games already played. */
+  day_form?: { obs_sd: number; gd_cap: number };
 }
 
 /** Where a stage's entrants come from: the entry list or another stage's ranking. */
@@ -103,6 +105,13 @@ export interface SimOptions {
   /** Draw each player's rating from the posterior once per run. Default true. */
   ratingUncertainty?: boolean;
   formSd?: number;
+  /**
+   * Live mode: update every player's strength from the games already played in this event
+   * (same-day form). Default true; it does nothing without played games.
+   */
+  dayForm?: boolean;
+  /** Overrides the model's day_form.obs_sd (backtests). */
+  dayFormObsSd?: number;
   onProgress?: (done: number) => void;
 }
 

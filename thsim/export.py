@@ -25,6 +25,8 @@ from thsim.ratings import models as M
 ACTIVE_YEARS = 6
 FIT_YEARS = 8
 HALF_LIFE_YEARS = 3.0
+# Live mode: per-game goal-difference noise for updating strengths from the day's games (M10, chosen on 2022-2024).
+DAY_FORM_OBS_SD = 3.4
 
 
 def load_settings(path: Path = Path("reports/m2_params.json")) -> tuple[M.KalmanParams, float]:
@@ -63,7 +65,8 @@ def build(out: Path, as_of: date | None = None) -> None:
         games["stage_kind"].eq("po").to_numpy(), games["source"].to_numpy(), fit_mask,
         0.5 ** (np.maximum(age, 0) / HALF_LIFE_YEARS),
     )
-    model_json = model.to_json() | {"form_sd": form_sd, "rating_units": "goals"}
+    model_json = model.to_json() | {"form_sd": form_sd, "rating_units": "goals",
+                                    "day_form": {"obs_sd": DAY_FORM_OBS_SD, "gd_cap": params.gd_cap}}
 
     # Current ratings.
     cur = C.final(prep, params, cp, as_of_day) if cp else M.kalman_final(prep, params, as_of_day)

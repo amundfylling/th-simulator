@@ -1,0 +1,308 @@
+{
+ "window": "final",
+ "events": 393,
+ "half": {
+  "all": {
+   "summary": {
+    "kalman_form0.45_day0": {
+     "events": 393,
+     "winner_ll": 1.16995,
+     "uniform_ll": 2.33777,
+     "rps": 0.08462,
+     "top3_brier": 0.09969,
+     "uniform_top3_brier": 0.20516,
+     "fav_won": 0.5827,
+     "mean_p_winner": 0.46319
+    },
+    "kalman_form0.45_day2.6": {
+     "events": 393,
+     "winner_ll": 1.10997,
+     "uniform_ll": 2.33777,
+     "rps": 0.08286,
+     "top3_brier": 0.0981,
+     "uniform_top3_brier": 0.20516,
+     "fav_won": 0.60814,
+     "mean_p_winner": 0.4784
+    },
+    "kalman_form0.45_day3.4": {
+     "events": 393,
+     "winner_ll": 1.10889,
+     "uniform_ll": 2.33777,
+     "rps": 0.08303,
+     "top3_brier": 0.09798,
+     "uniform_top3_brier": 0.20516,
+     "fav_won": 0.60814,
+     "mean_p_winner": 0.4731
+    }
+   },
+   "paired": {
+    "kalman_form0.45_day2.6": {
+     "winner_ll": {
+      "mean_diff": -0.05997732645456162,
+      "t_p": 0.025548122263885014,
+      "better_share": 0.6055979643765903
+     },
+     "rps": {
+      "mean_diff": -0.0017596298711568847,
+      "t_p": 0.014933532280976963,
+      "better_share": 0.5648854961832062
+     },
+     "top3_brier": {
+      "mean_diff": -0.0015852851644701826,
+      "t_p": 0.18885873729315159,
+      "better_share": 0.5241730279898219
+     }
+    },
+    "kalman_form0.45_day3.4": {
+     "winner_ll": {
+      "mean_diff": -0.06106308289287573,
+      "t_p": 0.00031111890591750175,
+      "better_share": 0.5928753180661578
+     },
+     "rps": {
+      "mean_diff": -0.001589654841958463,
+      "t_p": 0.0030013203003793464,
+      "better_share": 0.5826972010178118
+     },
+     "top3_brier": {
+      "mean_diff": -0.0017116666219569414,
+      "t_p": 0.04938945661899354,
+      "better_share": 0.5674300254452926
+     }
+    }
+   },
+   "geo_p_winner": {
+    "kalman_form0.45_day0": 0.3103825801176587,
+    "kalman_form0.45_day2.6": 0.32956809441809476,
+    "kalman_form0.45_day3.4": 0.32992611942727956
+   }
+  },
+  "rule_ok": {
+   "summary": {
+    "kalman_form0.45_day0": {
+     "events": 345,
+     "winner_ll": 0.97533,
+     "uniform_ll": 2.32758,
+     "rps": 0.06704,
+     "top3_brier": 0.07773,
+     "uniform_top3_brier": 0.20668,
+     "fav_won": 0.61159,
+     "mean_p_winner": 0.48677
+    },
+    "kalman_form0.45_day2.6": {
+     "events": 345,
+     "winner_ll": 0.90997,
+     "uniform_ll": 2.32758,
+     "rps": 0.06576,
+     "top3_brier": 0.07696,
+     "uniform_top3_brier": 0.20668,
+     "fav_won": 0.63768,
+     "mean_p_winner": 0.50233
+    },
+    "kalman_form0.45_day3.4": {
+     "events": 345,
+     "winner_ll": 0.92233,
+     "uniform_ll": 2.32758,
+     "rps": 0.06575,
+     "top3_brier": 0.07655,
+     "uniform_top3_brier": 0.20668,
+     "fav_won": 0.63768,
+     "mean_p_winner": 0.49673
+    }
+   },
+   "paired": {
+    "kalman_form0.45_day2.6": {
+     "winner_ll": {
+      "mean_diff": -0.06535894098871425,
+      "t_p": 0.0034250326854734885,
+      "better_share": 0.6057971014492753
+     },
+     "rps": {
+      "mean_diff": -0.001272452619817827,
+      "t_p": 0.08757390561758674,
+      "better_share": 0.5565217391304348
+     },
+     "top3_brier": {
+      "mean_diff": -0.0007708667562619141,
+      "t_p": 0.5411361294602414,
+      "better_share": 0.5043478260869565
+     }
+    },
+    "kalman_form0.45_day3.4": {
+     "winner_ll": {
+      "mean_diff": -0.052995706652894464,
+      "t_p": 0.0024340056771531907,
+      "better_share": 0.6028985507246377
+     },
+     "rps": {
+      "mean_diff": -0.0012828040626576807,
+      "t_p": 0.020268743023945147,
+      "better_share": 0.5768115942028985
+     },
+     "top3_brier": {
+      "mean_diff": -0.0011854242323453205,
+      "t_p": 0.18834170025340458,
+      "better_share": 0.5507246376811594
+     }
+    }
+   },
+   "geo_p_winner": {
+    "kalman_form0.45_day0": 0.3770682290785076,
+    "kalman_form0.45_day2.6": 0.4025362242920299,
+    "kalman_form0.45_day3.4": 0.3975902119765846
+   }
+  }
+ },
+ "ko": {
+  "all": {
+   "summary": {
+    "kalman_form0.45_day0": {
+     "events": 393,
+     "winner_ll": 1.24098,
+     "uniform_ll": 2.33777,
+     "rps": 0.07448,
+     "top3_brier": 0.08931,
+     "uniform_top3_brier": 0.20516,
+     "fav_won": 0.60051,
+     "mean_p_winner": 0.47578
+    },
+    "kalman_form0.45_day2.6": {
+     "events": 393,
+     "winner_ll": 1.15534,
+     "uniform_ll": 2.33777,
+     "rps": 0.07165,
+     "top3_brier": 0.08562,
+     "uniform_top3_brier": 0.20516,
+     "fav_won": 0.59288,
+     "mean_p_winner": 0.49628
+    },
+    "kalman_form0.45_day3.4": {
+     "events": 393,
+     "winner_ll": 1.13149,
+     "uniform_ll": 2.33777,
+     "rps": 0.07185,
+     "top3_brier": 0.08587,
+     "uniform_top3_brier": 0.20516,
+     "fav_won": 0.59542,
+     "mean_p_winner": 0.49046
+    }
+   },
+   "paired": {
+    "kalman_form0.45_day2.6": {
+     "winner_ll": {
+      "mean_diff": -0.08563334875967861,
+      "t_p": 0.031232334009698267,
+      "better_share": 0.5903307888040712
+     },
+     "rps": {
+      "mean_diff": -0.0028322624091965194,
+      "t_p": 0.00044585956307778145,
+      "better_share": 0.5852417302798982
+     },
+     "top3_brier": {
+      "mean_diff": -0.003690601865962955,
+      "t_p": 0.001180119633252076,
+      "better_share": 0.5139949109414759
+     }
+    },
+    "kalman_form0.45_day3.4": {
+     "winner_ll": {
+      "mean_diff": -0.10948369709466231,
+      "t_p": 0.007139551565189635,
+      "better_share": 0.5776081424936387
+     },
+     "rps": {
+      "mean_diff": -0.002625622497629501,
+      "t_p": 1.9400900973479136e-05,
+      "better_share": 0.5979643765903307
+     },
+     "top3_brier": {
+      "mean_diff": -0.003447225643074138,
+      "t_p": 8.357622858397109e-05,
+      "better_share": 0.5419847328244275
+     }
+    }
+   },
+   "geo_p_winner": {
+    "kalman_form0.45_day0": 0.28910182902465165,
+    "kalman_form0.45_day2.6": 0.31494950499659535,
+    "kalman_form0.45_day3.4": 0.3225514546181692
+   }
+  },
+  "rule_ok": {
+   "summary": {
+    "kalman_form0.45_day0": {
+     "events": 345,
+     "winner_ll": 0.95454,
+     "uniform_ll": 2.32758,
+     "rps": 0.05314,
+     "top3_brier": 0.06406,
+     "uniform_top3_brier": 0.20668,
+     "fav_won": 0.63188,
+     "mean_p_winner": 0.49802
+    },
+    "kalman_form0.45_day2.6": {
+     "events": 345,
+     "winner_ll": 0.88624,
+     "uniform_ll": 2.32758,
+     "rps": 0.0508,
+     "top3_brier": 0.06094,
+     "uniform_top3_brier": 0.20668,
+     "fav_won": 0.62029,
+     "mean_p_winner": 0.51937
+    },
+    "kalman_form0.45_day3.4": {
+     "events": 345,
+     "winner_ll": 0.88234,
+     "uniform_ll": 2.32758,
+     "rps": 0.0508,
+     "top3_brier": 0.06102,
+     "uniform_top3_brier": 0.20668,
+     "fav_won": 0.62899,
+     "mean_p_winner": 0.51343
+    }
+   },
+   "paired": {
+    "kalman_form0.45_day2.6": {
+     "winner_ll": {
+      "mean_diff": -0.06830302271470996,
+      "t_p": 0.08907217032683032,
+      "better_share": 0.6
+     },
+     "rps": {
+      "mean_diff": -0.002337028114703541,
+      "t_p": 0.004692240653936185,
+      "better_share": 0.5681159420289855
+     },
+     "top3_brier": {
+      "mean_diff": -0.0031226525640916047,
+      "t_p": 0.009464309002159353,
+      "better_share": 0.5014492753623189
+     }
+    },
+    "kalman_form0.45_day3.4": {
+     "winner_ll": {
+      "mean_diff": -0.07220056461399148,
+      "t_p": 0.04647570196870058,
+      "better_share": 0.5826086956521739
+     },
+     "rps": {
+      "mean_diff": -0.002339676950216731,
+      "t_p": 0.0002502159023492304,
+      "better_share": 0.5739130434782609
+     },
+     "top3_brier": {
+      "mean_diff": -0.0030422874875602494,
+      "t_p": 0.0010619926278979768,
+      "better_share": 0.5304347826086957
+     }
+    }
+   },
+   "geo_p_winner": {
+    "kalman_form0.45_day0": 0.38498865480960737,
+    "kalman_form0.45_day2.6": 0.41220338833294295,
+    "kalman_form0.45_day3.4": 0.4138131032378983
+   }
+  }
+ }
+}

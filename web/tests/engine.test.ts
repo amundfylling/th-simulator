@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Gbm, pairShifts } from "../src/engine/gbm";
+import { dayFormPosterior, drawPosterior } from "../src/engine/dayForm";
 import { Rng } from "../src/engine/rng";
 import { assignGroups, bracketOrder, rankTable, roundWins, simulateTournament, Tournament } from "../src/engine/simulate";
 import type { StageConfig } from "../src/engine/types";
@@ -241,5 +242,57 @@ describe("LightGBM layer", () => {
     const s = pairShifts(g, [b, a], {}, 0.8, { level: -1, bordshockey: 0 });
     expect(Object.keys(s)).toEqual(["1-2"]);
     expect(Number.isFinite(s["1-2"])).toBe(true);
+  });
+});
+
+describe("same-day form (live mode)", () => {
+  it("matches the closed form for one game between two players", () => {
+    // prior N(0, 1) each, one game a beats b 3-0 with noise sd 2: shift of a = v * gd / (2v + s^2)
+    const post = dayFormPosterior([0, 0], [1, 1], [{ a: 0, b: 1, gd: 3, shift: 0 }], 2, 6);
+    expect(post.mean[0]).toBeCloseTo(3 / 6, 10);
+    expect(post.mean[1]).toBeCloseTo(-3 / 6, 10);
+    // draws have the posterior covariance: var = 1 - 1/6, cov = 1/6
+    const rng = new Rng(3);
+    const z = new Float64Array(2);
+    const x = new Float64Array(2);
+    let s00 = 0, s01 = 0;
+    const N = 200000;
+    for (let k = 0; k < N; k++) {
+      z[0] = rng.normal(); z[1] = rng.normal();
+      drawPosterior(post, z, x);
+      s00 += (x[0] - 0.5) ** 2;
+      s01 += (x[0] - 0.5) * (x[1] + 0.5);
+    }
+    expect(s00 / N).toBeCloseTo(5 / 6, 2);
+    expect(s01 / N).toBeCloseTo(1 / 6, 2);
+  });
+
+  it("subtracts the pair shift and clips the goal difference", () => {
+    const a = dayFormPosterior([0, 0], [1, 1], [{ a: 0, b: 1, gd: 20, shift: 1 }], 2, 6);
+    expect(a.mean[0]).toBeCloseTo(5 / 6, 10);
+  });
+
+  it("lifts a player who won the day in the playoff odds, and only with played games", () => {
+    const ps = players(4, 0).map((p) => ({ ...p, sd: 0.4 }));
+    const cfg: StageConfig[] = [
+      { id: "groups", type: "groups", groups: 1, source: [{ from: "entry" }], places: 1 },
+      { id: "ko", type: "knockout", winsNeeded: [1, 1], source: [{ from: "groups", ranks: [1, 4] }], places: 1 },
+    ];
+    // P4 crushes everyone in the group; P1 loses every game narrowly
+    const played = [
+      { stage: "groups", p1: 103, p2: 100, g1: 6, g2: 0 },
+      { stage: "groups", p1: 103, p2: 101, g1: 5, g2: 0 },
+      { stage: "groups", p1: 103, p2: 102, g1: 6, g2: 1 },
+      { stage: "groups", p1: 101, p2: 100, g1: 2, g2: 1 },
+      { stage: "groups", p1: 102, p2: 100, g1: 2, g2: 1 },
+      { stage: "groups", p1: 101, p2: 102, g1: 1, g2: 1 },
+    ];
+    const t = new Tournament(ps, cfg, model, played);
+    const on = t.simulate({ runs: 4000, seed: 5 });
+    const off = t.simulate({ runs: 4000, seed: 5, dayForm: false });
+    expect(on.placeCounts[3][0]).toBeGreaterThan(off.placeCounts[3][0] + 300);
+    // no played games: identical to the old draw
+    const t0 = new Tournament(ps, cfg, model);
+    expect(t0.simulate({ runs: 500, seed: 2 }).placeCounts).toEqual(t0.simulate({ runs: 500, seed: 2, dayForm: false }).placeCounts);
   });
 });
