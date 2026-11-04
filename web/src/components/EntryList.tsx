@@ -26,7 +26,7 @@ export function EntryList({ entries, onChange }: Props) {
         <h2>
           <span className="step">2</span> Entry list <span className="badge">{entries.length}</span>
         </h2>
-        <p className="muted">The order is the seeding. Seed 1 is on top.</p>
+        <p className="muted">Groups are always seeded by world rank (unranked players last, in this order). This order seeds a straight knockout.</p>
       </header>
       {entries.length === 0 ? (
         <p className="empty">No players yet. Add some from the list.</p>

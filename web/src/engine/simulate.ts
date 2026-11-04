@@ -191,15 +191,17 @@ export class Tournament {
     const legs = stage.legs ?? 1;
     const pts = stage.points ?? DEFAULT_POINTS;
     const tiebreak = stage.tiebreak ?? DEFAULT_TIEBREAK;
+    // Groups are always seeded by the World Ranking, whatever the entry order.
+    const seeded = worldRankOrder(entrants, this.players);
     let groups: number[][];
     if (stage.groupsExplicit) {
       const inStage = new Set(entrants);
       groups = stage.groupsExplicit.map((ids) => ids.map((id) => this.index.get(id)!).filter((p) => p !== undefined && inStage.has(p)));
     } else {
-      const order = stage.seeding === "random" ? rng.shuffle(entrants.slice()) : entrants;
+      const order = stage.seeding === "random" ? rng.shuffle(entrants.slice()) : seeded;
       groups = assignGroups(order, G, stage.seeding === "block" ? "block" : "snake");
     }
-    const seedOf = new Map(entrants.map((p, i) => [p, i]));
+    const seedOf = new Map(seeded.map((p, i) => [p, i]));
     const byPosition: Standing[][] = [];
     for (const members of groups) {
       const table = members.map((p) => standing(p, seedOf.get(p)!, rng));
@@ -468,6 +470,18 @@ export function rankTable(
     }
     return u.seed - v.seed;
   });
+}
+
+/**
+ * Entrants (player indices) in World Ranking order: best rank first, unranked players
+ * after all ranked ones, ties and unranked players keeping their given order.
+ */
+export function worldRankOrder(entrants: number[], players: { worldRank?: number | null }[]): number[] {
+  const rank = (p: number) => players[p].worldRank ?? Infinity;
+  return entrants
+    .map((p, i) => [p, i] as const)
+    .sort(([a, i], [b, j]) => rank(a) - rank(b) || i - j)
+    .map(([p]) => p);
 }
 
 /** Spread seeded entrants over G groups (snake: 1..G, G..1, ...; block: consecutive). */

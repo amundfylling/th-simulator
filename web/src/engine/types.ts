@@ -7,6 +7,8 @@ export interface Player {
   /** Rating mean and posterior sd in model units. */
   mu: number;
   sd: number;
+  /** World Ranking position; group stages are always seeded by it. Unranked players come last, in entry order. */
+  worldRank?: number | null;
 }
 
 export interface GameModelJson {
@@ -49,7 +51,7 @@ export interface GroupStageConfig extends BaseStage {
   /** Points for win, draw, loss. Default 2-1-0. */
   points?: [number, number, number];
   tiebreak?: Tiebreak[];
-  /** How seeds are spread over groups. Default snake. */
+  /** How seeds are spread over groups. Seeds follow the World Ranking (see `worldRankOrder`). Default snake. */
   seeding?: "snake" | "block" | "random";
   /** Fixed group composition as player ids (e.g. a historical draw); overrides `groups`/`seeding`. */
   groupsExplicit?: number[][];

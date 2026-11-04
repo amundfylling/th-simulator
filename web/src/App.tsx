@@ -124,7 +124,7 @@ export function App() {
     worker.current?.terminate();
     const w = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
     worker.current = w;
-    const players: Player[] = entries.map((p) => ({ id: p.id, name: p.name, country: p.country, mu: p.mu, sd: p.sd }));
+    const players: Player[] = entries.map((p) => ({ id: p.id, name: p.name, country: p.country, mu: p.mu, sd: p.sd, worldRank: p.worldRank }));
     const req: SimRequest = {
       players, stages, model: data.model, runs, seed: Math.floor(Math.random() * 2 ** 31), ratingUncertainty: uncertainty,
       played: imported?.result.played,
