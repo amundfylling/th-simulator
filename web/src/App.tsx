@@ -277,6 +277,11 @@ function About({ data }: { data: AppData }) {
         </p>
       )}
       <p>
+        During an event (a table-hockey.eu link with results), games already played are kept as they ended, and they also
+        update every player's strength for the rest of the day: someone who has had a great group stage goes into the
+        playoffs stronger than their rating alone says, and someone having a bad day weaker.
+      </p>
+      <p>
         Each simulated tournament draws every player's strength once from that uncertainty. Games are then played with a model
         fitted on real results: how often games are drawn at each strength gap, real scorelines (so goal difference tiebreaks
         behave), golden-goal overtime in playoffs (much closer to a coin flip than regulation), and first-to-N series. The

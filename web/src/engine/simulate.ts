@@ -7,8 +7,10 @@
  * `places`, latest stage first, so every place is defined.
  *
  * Every run draws each player's strength once (posterior draw + optional form shock)
- * and keeps it for the whole run.
+ * and keeps it for the whole run. In live mode the draw is conditioned on the games already
+ * played (same-day form, see dayForm.ts).
  */
+import { dayFormPosterior, drawPosterior, type DayFormGame, type DayFormPosterior } from "./dayForm";
 import { GameSampler, type GameOut } from "./gameModel";
 import { Rng } from "./rng";
 import type {
@@ -48,6 +50,7 @@ export class Tournament {
   private readonly index = new Map<number, number>();
   private readonly played = new Map<string, PlayedGame[]>();
   private readonly playedByStage = new Map<string, PlayedGame[]>();
+  private readonly playedList: PlayedGame[];
   private readonly sampler: GameSampler;
   private readonly strength: Float64Array;
   /** pairShift[a * n + b]: head-to-head edge of player a over player b (indices), rating units. */
@@ -75,6 +78,7 @@ export class Tournament {
     }
     this.sampler = new GameSampler(model);
     this.strength = new Float64Array(this.n);
+    this.playedList = played;
     for (const g of played) {
       const key = pairKey(g.stage, g.p1, g.p2);
       if (!this.played.has(key)) this.played.set(key, []);
@@ -97,10 +101,17 @@ export class Tournament {
     const finals: Record<string, number> = {};
     const unc = opts.ratingUncertainty ?? true;
     const formSd = opts.formSd ?? this.sampler.model.form_sd ?? 0;
+    const post = (opts.dayForm ?? true) && (unc || formSd > 0) ? this.dayForm(unc, formSd, opts.dayFormObsSd) : null;
+    const z = post ? new Float64Array(n) : null;
     for (let run = 0; run < opts.runs; run++) {
-      for (let i = 0; i < n; i++) {
-        const p = this.players[i];
-        this.strength[i] = p.mu + (unc ? p.sd * rng.normal() : 0) + (formSd ? formSd * rng.normal() : 0);
+      if (post && z) {
+        for (let i = 0; i < n; i++) z[i] = rng.normal();
+        drawPosterior(post, z, this.strength);
+      } else {
+        for (let i = 0; i < n; i++) {
+          const p = this.players[i];
+          this.strength[i] = p.mu + (unc ? p.sd * rng.normal() : 0) + (formSd ? formSd * rng.normal() : 0);
+        }
       }
       const places = this.runOnce(rng, stats, finals);
       for (let i = 0; i < n; i++) placeCounts[i][places[i]]++;
@@ -114,6 +125,23 @@ export class Tournament {
       finals,
       elapsedMs: Date.now() - t0,
     };
+  }
+
+  /** Strength posterior given the games already played, or null when there are none. */
+  private dayForm(unc: boolean, formSd: number, obsSd?: number): DayFormPosterior | null {
+    const games: DayFormGame[] = [];
+    for (const g of this.playedList) {
+      const a = this.index.get(g.p1);
+      const b = this.index.get(g.p2);
+      if (a === undefined || b === undefined || a === b || g.walkover) continue;
+      games.push({ a, b, gd: g.g1 - g.g2, shift: this.pairShift ? this.pairShift[a * this.n + b] : 0 });
+    }
+    if (!games.length) return null;
+    const cfg = this.sampler.model.day_form ?? { obs_sd: 3.4, gd_cap: 6 };
+    if ((obsSd ?? cfg.obs_sd) <= 0) return null;
+    const mu = this.players.map((p) => p.mu);
+    const variance = this.players.map((p) => (unc ? p.sd * p.sd : 0) + formSd * formSd);
+    return dayFormPosterior(mu, variance, games, obsSd ?? cfg.obs_sd, cfg.gd_cap);
   }
 
   /** One full tournament. Returns the 0-based final place of every player. */
