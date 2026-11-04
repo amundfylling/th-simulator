@@ -1,0 +1,77 @@
+{
+ "window": "final",
+ "variants": {
+  "composite+h2h_form0.45": {
+   "events": 623,
+   "winner_ll": 1.2811,
+   "uniform_ll": 2.3443,
+   "rps": 0.0936,
+   "top3_brier": 0.1095,
+   "uniform_top3_brier": 0.2035,
+   "fav_won": 0.5586,
+   "mean_p_winner": 0.4352
+  },
+  "composite_form0.45": {
+   "events": 623,
+   "winner_ll": 1.3212,
+   "uniform_ll": 2.3443,
+   "rps": 0.0936,
+   "top3_brier": 0.1096,
+   "uniform_top3_brier": 0.2035,
+   "fav_won": 0.5586,
+   "mean_p_winner": 0.432
+  },
+  "gbm_form0.45": {
+   "events": 623,
+   "winner_ll": 1.2067,
+   "uniform_ll": 2.3443,
+   "rps": 0.0908,
+   "top3_brier": 0.1055,
+   "uniform_top3_brier": 0.2035,
+   "fav_won": 0.565,
+   "mean_p_winner": 0.4389
+  },
+  "kalman_form0.45": {
+   "events": 623,
+   "winner_ll": 1.2908,
+   "uniform_ll": 2.3443,
+   "rps": 0.0956,
+   "top3_brier": 0.1112,
+   "uniform_top3_brier": 0.2035,
+   "fav_won": 0.5393,
+   "mean_p_winner": 0.4335
+  }
+ },
+ "paired": {
+  "winner_ll: gbm vs kalman_form0.45": {
+   "mean_diff": -0.08409131118442147,
+   "t_p": 0.0027375892042897556,
+   "better_share": 0.5313001605136437
+  },
+  "winner_ll: gbm vs composite+h2h_form0.45": {
+   "mean_diff": -0.07438578310626418,
+   "t_p": 0.0032958207972377525,
+   "better_share": 0.5313001605136437
+  },
+  "rps: gbm vs kalman_form0.45": {
+   "mean_diff": -0.0047621728376399525,
+   "t_p": 4.1522277027841635e-15,
+   "better_share": 0.6420545746388443
+  },
+  "rps: gbm vs composite+h2h_form0.45": {
+   "mean_diff": -0.0027597400839835763,
+   "t_p": 1.1447624070754765e-09,
+   "better_share": 0.5858747993579454
+  },
+  "top3_brier: gbm vs kalman_form0.45": {
+   "mean_diff": -0.005653838909991444,
+   "t_p": 8.752086556153337e-08,
+   "better_share": 0.5778491171749599
+  },
+  "top3_brier: gbm vs composite+h2h_form0.45": {
+   "mean_diff": -0.003948611240297186,
+   "t_p": 5.8499623542527e-08,
+   "better_share": 0.5730337078651685
+  }
+ }
+}

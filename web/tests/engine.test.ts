@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Gbm, pairShifts } from "../src/engine/gbm";
 import { Rng } from "../src/engine/rng";
 import { assignGroups, bracketOrder, rankTable, roundWins, simulateTournament, Tournament } from "../src/engine/simulate";
 import type { StageConfig } from "../src/engine/types";
@@ -205,5 +206,40 @@ describe("tournament engine", () => {
     }
     expect(Math.abs(s / 50000)).toBeLessThan(0.02);
     expect(Math.abs(s2 / 50000 - 1)).toBeLessThan(0.03);
+  });
+});
+
+describe("LightGBM layer", () => {
+  // Two-feature toy model: class 0 (A wins) grows with d, class 2 (B wins) with -d, draws flat.
+  const tree = (sign: number) => ({ f: [0], t: [0], l: [~0], r: [~1], m: [0], dl: [1], v: [-sign, sign], root: 0 });
+  const json = {
+    features: ["d", "x_1", "x_2"],
+    side: ["x"],
+    num_class: 3,
+    trees: [tree(1), { f: [], t: [], l: [], r: [], m: [], dl: [], v: [0], root: ~0 }, tree(-1)],
+  };
+
+  it("evaluates trees and handles missing values", () => {
+    const g = new Gbm(json);
+    const up = g.predictRow(Float64Array.from([1, 0, 0]));
+    const down = g.predictRow(Float64Array.from([-1, 0, 0]));
+    expect(up[0]).toBeGreaterThan(up[2]);
+    expect(down[2]).toBeGreaterThan(down[0]);
+    expect(up[0] + up[1] + up[2]).toBeCloseTo(1, 12);
+    // NaN with missing type "none" is treated as 0, which goes left (<= 0).
+    expect(g.predictRow(Float64Array.from([NaN, 0, 0]))).toEqual(down);
+  });
+
+  it("gives order-free odds and antisymmetric pair shifts", () => {
+    const g = new Gbm(json);
+    const a = { id: 1, mu: 1, sd: 0.2, feat: [0] };
+    const b = { id: 2, mu: 0, sd: 0.2, feat: [null] };
+    const ab = g.pairOdds(a, b, 0, 0, { level: -1, bordshockey: 0 });
+    const ba = g.pairOdds(b, a, 0, 0, { level: -1, bordshockey: 0 });
+    expect(ab[0]).toBeCloseTo(ba[2], 12);
+    expect(ab[1]).toBeCloseTo(ba[1], 12);
+    const s = pairShifts(g, [b, a], {}, 0.8, { level: -1, bordshockey: 0 });
+    expect(Object.keys(s)).toEqual(["1-2"]);
+    expect(Number.isFinite(s["1-2"])).toBe(true);
   });
 });

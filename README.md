@@ -30,6 +30,8 @@ The same engine runs on the website (in a Web Worker) and in the tournament back
 | `thsim/backtest_tournaments.py` | Tournament reconstruction and tournament-level backtest (M5) |
 | `thsim/research/puck.py` | M8: what the h2h.puck.no ratings add (tuning, blend fit, game-level report) |
 | `thsim/research/puck_tournaments.py` | M8: tournament-level before/after |
+| `thsim/models/gbm.py` | M9: LightGBM layer (pre-event pair odds), tree export for the website |
+| `thsim/research/features.py`, `m9.py`, `m9_tournaments.py` | M9: walk-forward features, game-level and tournament-level tests |
 | `thsim/export.py` | Current ratings, head-to-head edges + game model for the website |
 | `web/src/engine/` | Tournament engine (TypeScript) |
 | `web/src/` | Website (React + Vite) |
@@ -48,6 +50,8 @@ python -m thsim.research.puck tune        # M8 tune the Glicko-MoV rating (~1 h)
 python -m thsim.research.puck fit         # M8 blend weight + head-to-head -> reports/m8_params.json
 python -m thsim.research.puck report --final
 python -m thsim.research.puck_tournaments --window select   # after backtest_tournaments build/simulate
+python -m thsim.research.m9 --final       # M9 game-level report (cheap terms + LightGBM)
+python -m thsim.research.m9_tournaments --window select --retrain   # M9 tournament level
 python -m thsim.export                    # write web/public/data/
 pytest
 
