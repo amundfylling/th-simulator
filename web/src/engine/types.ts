@@ -103,7 +103,46 @@ export interface SimOptions {
   /** Draw each player's rating from the posterior once per run. Default true. */
   ratingUncertainty?: boolean;
   formSd?: number;
+  /** Keep every game and table of the run. Default: on when runs === 1. */
+  trace?: boolean;
   onProgress?: (done: number) => void;
+}
+
+/** One game of a traced run. a/b are player indices; goals from a's view. */
+export interface GameRecord {
+  /** Group, Swiss round, knockout round ("Final", "Bronze", ...) or "Carried over". */
+  label: string;
+  a: number;
+  b: number;
+  g1: number;
+  g2: number;
+  ot: boolean;
+}
+
+export interface TableRow {
+  p: number;
+  points: number;
+  gf: number;
+  ga: number;
+  games: number;
+  wins: number;
+}
+
+export interface StageOutcome {
+  id: string;
+  type: StageConfig["type"];
+  /** The stage's full ranking of its entrants (player indices). */
+  ranking: number[];
+  /** groups: final table of each group; swiss: one table. */
+  tables?: TableRow[][];
+  games: GameRecord[];
+}
+
+/** What happened in one simulated tournament. */
+export interface SingleRun {
+  /** places[i] = 0-based final place of player i. */
+  places: number[];
+  stages: StageOutcome[];
 }
 
 export interface StageStats {
@@ -129,5 +168,7 @@ export interface SimResult {
   stages: StageStats[];
   /** "idA-idB" (sorted) -> count of title finals between them (placement brackets excluded). */
   finals: Record<string, number>;
+  /** The last run in full, when traced (always for a single run). */
+  single?: SingleRun;
   elapsedMs: number;
 }

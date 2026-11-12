@@ -184,6 +184,27 @@ describe("tournament engine", () => {
     }
   });
 
+  it("records the full tournament for a single run", () => {
+    const ps = players(16);
+    const cfg: StageConfig[] = [
+      { id: "groups", type: "groups", groups: 4, source: [{ from: "entry" }], places: 1 },
+      { id: "ko", type: "knockout", winsNeeded: [2, 3], bronze: true, source: [{ from: "groups", ranks: [1, 8] }], places: 1 },
+    ];
+    const res = simulateTournament(ps, { stages: cfg }, model, { runs: 1, seed: 9 });
+    const one = res.single!;
+    expect([...one.places].sort((a, b) => a - b)).toEqual([...Array(16).keys()]);
+    // the single run's places are the place counts
+    one.places.forEach((k, i) => expect(res.placeCounts[i][k]).toBe(1));
+    const [g, ko] = one.stages;
+    expect(g.tables!.length).toBe(4);
+    expect(g.games.length).toBe(4 * 6);
+    for (const t of g.tables!) for (const r of t) expect(r.games).toBe(3);
+    expect(ko.ranking[0]).toBe(one.places.indexOf(0));
+    expect(new Set(ko.games.map((x) => x.label))).toEqual(new Set(["Quarterfinal", "Semifinal", "Final", "Bronze"]));
+    // many runs keep no trace unless asked
+    expect(simulateTournament(ps, { stages: cfg }, model, { runs: 10, seed: 9 }).single).toBeUndefined();
+  });
+
   it("simulates 10,000 runs of a 100-player event in a few seconds", () => {
     const ps = players(100, 0.05);
     const cfg: StageConfig[] = [

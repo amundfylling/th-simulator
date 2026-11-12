@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { assignGroups } from "../engine/simulate";
 import type { SimResult, StageConfig } from "../engine/types";
 import { displayRating } from "../data";
+import { SingleRun } from "./SingleRun";
 
 interface Props {
   result: SimResult;
@@ -31,6 +32,11 @@ function heat(p: number): string | undefined {
 const inkOn = (p: number) => (Math.pow(Math.min(1, p / 0.6), 0.55) > 0.45 ? "#ffffff" : "var(--text-primary)");
 
 export function Results({ result, stages }: Props) {
+  if (result.runs === 1 && result.single) return <SingleRun result={result} stages={stages} />;
+  return <Distribution result={result} stages={stages} />;
+}
+
+function Distribution({ result, stages }: Props) {
   const R = result.runs;
   const n = result.players.length;
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);

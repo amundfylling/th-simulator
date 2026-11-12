@@ -19,7 +19,9 @@ import type {
   Player,
   SimOptions,
   SimResult,
+  SingleRun,
   StageConfig,
+  StageOutcome,
   StageStats,
   SwissStageConfig,
   Tiebreak,
@@ -56,6 +58,9 @@ export class Tournament {
   private readonly carrySources: Set<string>;
   /** The bracket that decides the title: its finals are the ones reported. */
   private readonly titleStage: string | undefined;
+  /** Set while tracing a run: the stage outcome being filled, and the label for the next games. */
+  private trace: StageOutcome | null = null;
+  private label = "";
 
   constructor(
     readonly players: Player[],
@@ -97,12 +102,16 @@ export class Tournament {
     const finals: Record<string, number> = {};
     const unc = opts.ratingUncertainty ?? true;
     const formSd = opts.formSd ?? this.sampler.model.form_sd ?? 0;
+    const tracing = opts.trace ?? opts.runs === 1;
+    let single: SingleRun | undefined;
     for (let run = 0; run < opts.runs; run++) {
       for (let i = 0; i < n; i++) {
         const p = this.players[i];
         this.strength[i] = p.mu + (unc ? p.sd * rng.normal() : 0) + (formSd ? formSd * rng.normal() : 0);
       }
-      const places = this.runOnce(rng, stats, finals);
+      const outcomes: StageOutcome[] | undefined = tracing && run === opts.runs - 1 ? [] : undefined;
+      const places = this.runOnce(rng, stats, finals, outcomes);
+      if (outcomes) single = { places: Array.from(places), stages: outcomes };
       for (let i = 0; i < n; i++) placeCounts[i][places[i]]++;
       if (opts.onProgress && (run + 1) % 500 === 0) opts.onProgress(run + 1);
     }
@@ -112,12 +121,13 @@ export class Tournament {
       placeCounts,
       stages: stats,
       finals,
+      single,
       elapsedMs: Date.now() - t0,
     };
   }
 
   /** One full tournament. Returns the 0-based final place of every player. */
-  runOnce(rng: Rng, stats: StageStats[], finals: Record<string, number>): Int32Array {
+  runOnce(rng: Rng, stats: StageStats[], finals: Record<string, number>, outcomes?: StageOutcome[]): Int32Array {
     const rankings = new Map<string, number[]>();
     rankings.set("entry", this.players.map((_, i) => i));
     const log: GameLog = new Map();
@@ -130,12 +140,18 @@ export class Tournament {
       }
       const st = stats[si];
       for (const p of entrants) st.entered[p]++;
+      this.trace = outcomes ? { id: stage.id, type: stage.type, ranking: [], games: [] } : null;
       let ranking: number[];
       if (stage.type === "groups") ranking = this.groups(stage, entrants, rng, st, log);
       else if (stage.type === "swiss") ranking = this.swiss(stage, entrants, rng, st);
       else ranking = this.knockout(stage, entrants, rng, st, finals);
       rankings.set(stage.id, ranking);
+      if (this.trace) {
+        this.trace.ranking = ranking.slice();
+        outcomes!.push(this.trace);
+      }
     });
+    this.trace = null;
     return this.finalPlaces(rankings);
   }
 
@@ -178,10 +194,16 @@ export class Tournament {
       out.g1 = aIsP1 ? g.g1 : g.g2;
       out.g2 = aIsP1 ? g.g2 : g.g1;
       out.ot = !!g.ot;
-      return out;
+    } else {
+      const edge = this.pairShift ? this.pairShift[a * this.n + b] : 0;
+      this.sampler.play(this.strength[a] - this.strength[b] + edge, playoff, needWinner, rng, out);
     }
-    const edge = this.pairShift ? this.pairShift[a * this.n + b] : 0;
-    return this.sampler.play(this.strength[a] - this.strength[b] + edge, playoff, needWinner, rng, out);
+    this.trace?.games.push({ label: this.label, a, b, g1: out.g1, g2: out.g2, ot: out.ot });
+    return out;
+  }
+
+  private snapshot(table: Standing[]) {
+    return table.map((s) => ({ p: s.p, points: s.points, gf: s.gf, ga: s.ga, games: s.games, wins: s.wins }));
   }
 
   // --- round-robin groups ------------------------------------------------------
@@ -201,7 +223,9 @@ export class Tournament {
     }
     const seedOf = new Map(entrants.map((p, i) => [p, i]));
     const byPosition: Standing[][] = [];
-    for (const members of groups) {
+    if (this.trace) this.trace.tables = [];
+    for (const [gi, members] of groups.entries()) {
+      this.label = groups.length > 1 ? `Group ${groupName(gi)}` : "Table";
       const table = members.map((p) => standing(p, seedOf.get(p)!, rng));
       const m = members.length;
       const local = new Map(members.map((p, x) => [p, x]));
@@ -214,7 +238,10 @@ export class Tournament {
           let games: [number, number][] | undefined;
           // The log holds goals from the lower index's view: turn them to a's view.
           const carried = stage.carryFrom ? log.get(logKey(stage.carryFrom, a, b)) : undefined;
-          if (carried) games = a < b ? carried : carried.map(([u, v]) => [v, u] as [number, number]);
+          if (carried) {
+            games = a < b ? carried : carried.map(([u, v]) => [v, u] as [number, number]);
+            for (const [ga, gb] of games) this.trace?.games.push({ label: `${this.label} (carried over)`, a, b, g1: ga, g2: gb, ot: false });
+          }
           if (!games) {
             games = [];
             for (let l = 0; l < legs; l++) {
@@ -232,6 +259,7 @@ export class Tournament {
         const y = local.get(b)!;
         return x < y ? res[x * m + y] : res[y * m + x]?.map(([u, v]) => [v, u] as [number, number]);
       }, pts);
+      this.trace?.tables!.push(this.snapshot(table));
       table.forEach((s, k) => {
         (byPosition[k] ??= []).push(s);
         st.position![s.p][k]++;
@@ -278,6 +306,7 @@ export class Tournament {
       results.set(key, prev);
     };
     for (let round = 0; round < stage.rounds; round++) {
+      this.label = `Round ${round + 1}`;
       const fixedNow = perRound > 0 ? fixed.slice(round * perRound, (round + 1) * perRound) : [];
       const busy = new Set(fixedNow.flat());
       const order = table
@@ -305,6 +334,7 @@ export class Tournament {
       const g = results.get(logKey("", a, b));
       return a < b ? g : g?.map(([u, v]) => [v, u] as [number, number]);
     }, pts);
+    if (this.trace) this.trace.tables = [this.snapshot(table)];
     for (const s of table) {
       st.pointsSum![s.p] += s.points;
       st.gamesSum![s.p] += s.games;
@@ -331,7 +361,9 @@ export class Tournament {
     const eliminated: number[][] = Array.from({ length: R }, () => []);
     let alive = slots;
     let semiLosers: number[] = [];
+    const names = roundNames(R);
     for (let r = 0; r < R; r++) {
+      this.label = names[r];
       const next: number[] = [];
       for (let k = 0; k < alive.length; k += 2) {
         const a = alive[k];
@@ -360,6 +392,7 @@ export class Tournament {
     const ranking = [champion, ...eliminated[R - 1]];
     if (stage.bronze && semiLosers.length === 2) {
       semiLosers.sort((u, v) => seedOf.get(u)! - seedOf.get(v)!);
+      this.label = "Bronze";
       const w = this.series({ ...stage, id: stage.id + ":bronze" }, semiLosers[0], semiLosers[1], stage.bronzeWins ?? wins[R - 1], rng);
       ranking.push(w, w === semiLosers[0] ? semiLosers[1] : semiLosers[0]);
       semiLosers = [];
@@ -517,6 +550,10 @@ export function roundNames(rounds: number): string[] {
     const fromEnd = rounds - r;
     return names[fromEnd] ?? `Round of ${2 ** fromEnd}`;
   });
+}
+
+export function groupName(g: number): string {
+  return String.fromCharCode(65 + g);
 }
 
 function pairKey(stage: string, idA: number, idB: number): string {
