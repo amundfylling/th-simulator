@@ -207,9 +207,9 @@ export function App() {
               <label>
                 Runs
                 <select value={runs} onChange={(e) => setRuns(+e.target.value)}>
-                  {[1000, 10000, 50000, 100000].map((r) => (
+                  {[1, 100, 1000, 10000, 50000, 100000].map((r) => (
                     <option key={r} value={r}>
-                      {r.toLocaleString()}
+                      {r === 1 ? "1 (one tournament)" : r.toLocaleString()}
                     </option>
                   ))}
                 </select>
@@ -221,7 +221,7 @@ export function App() {
             {jsonError && <p className="error small">Config JSON: {jsonError}</p>}
             {error && <p className="error small">{error}</p>}
             <button className="primary" disabled={n < 2 || progress !== null || !!jsonError} onClick={run}>
-              {progress !== null ? `Simulating… ${Math.round(progress * 100)}%` : n < 2 ? "Add at least 2 players" : `Simulate ${runs.toLocaleString()} tournaments`}
+              {progress !== null ? `Simulating… ${Math.round(progress * 100)}%` : n < 2 ? "Add at least 2 players" : runs === 1 ? "Simulate 1 tournament" : `Simulate ${runs.toLocaleString()} tournaments`}
             </button>
             {progress !== null && (
               <div className="progress" aria-hidden>

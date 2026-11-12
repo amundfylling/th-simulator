@@ -187,6 +187,23 @@ td { padding: 5px 8px; border-top: 1px solid var(--border); white-space: nowrap;
 .heat.compact td { padding: 3px 6px; }
 .heat.compact td:first-child { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 
+.compact-table td { padding: 3px 6px; }
+.compact-table .name-cell { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+details.games { margin-top: 8px; }
+details.games summary { cursor: pointer; }
+.game-list { list-style: none; margin: 6px 0 0; padding: 0; font-size: 13px; }
+.game-list li { padding: 2px 0; border-top: 1px solid var(--border); }
+.game-list .score { font-variant-numeric: tabular-nums; color: var(--text-secondary); padding: 0 4px; }
+.bracket { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 4px; }
+.bracket-round { display: flex; flex-direction: column; min-width: 190px; }
+.bracket-matches { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 10px; }
+.match { border: 1px solid var(--border); border-radius: 8px; background: var(--surface-1); overflow: hidden; }
+.match-side { display: flex; justify-content: space-between; gap: 8px; padding: 4px 8px; color: var(--text-secondary); }
+.match-side + .match-side { border-top: 1px solid var(--border); }
+.match-side.won { color: var(--text-primary); font-weight: 600; }
+.match-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+.match-games { padding: 2px 8px 4px; border-top: 1px dashed var(--border); }
+
 .downloads { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .tooltip {
   position: fixed; z-index: 50; pointer-events: none; background: var(--text-primary); color: var(--surface-1);
